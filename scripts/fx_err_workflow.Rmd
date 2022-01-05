@@ -11,22 +11,25 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Organize data files
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+FoldX datasets from MD snapshots are in /data directory. These text files are read and organized into arrays for further manipulation and analysis.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+path_f <- "../data/fold_data/"
+path_b <- "../data/bind_data/"
+dns_f <- sort(list.files(path_f))
+dns_b <- sort(list.files(path_b))
+fns_f <- list.files(paste(path_f, dns_f[1], sep = ""))
+fns_b <- list.files(paste(path_b, dns_b[1], sep = ""))
+sys_names_f <- sapply(strsplit(dns_f, "_"), "[", 1)
+sys_names_b <- sapply(strsplit(dns_b, "_"), "[", 1)
 
-```{r cars}
-summary(cars)
+# FOLD DATA
+# Read in ddg_exp.txt for sys names, muts, exp ddg values
+
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
