@@ -20,16 +20,45 @@ path_f <- "../data/fold_data/"
 path_b <- "../data/bind_data/"
 dns_f <- sort(list.files(path_f))
 dns_b <- sort(list.files(path_b))
-fns_f <- list.files(paste(path_f, dns_f[1], sep = ""))
+fns_f <- list.files(paste(path_f, dns_f[1], sep = "")) #files in each sys dir are identical, so grab them from 1bni
 fns_b <- list.files(paste(path_b, dns_b[1], sep = ""))
 sys_names_f <- sapply(strsplit(dns_f, "_"), "[", 1)
 sys_names_b <- sapply(strsplit(dns_b, "_"), "[", 1)
 
 # FOLD DATA
 # Read in ddg_exp.txt for sys names, muts, exp ddg values
-
-
+list_sys <- list()
+list_mut <- list()
+list_ddg_exp <- list()
+for (i in 1:length(dns_f)){
+  list_sys[[i]] <- read.table(paste(path_f, dns_f[i], "/ddg_exp.txt", sep = ""))[1]
+  list_mut[[i]] <- read.table(paste(path_f, dns_f[i], "/ddg_exp.txt", sep = ""))[2]
+  list_ddg_exp[[i]] <- read.table(paste(path_f, dns_f[i], "/ddg_exp.txt", sep = ""))[3]
+}
+sys <- tolower(unlist(list_sys))
+mut <- unlist(list_mut)
+ddg_exp <- unlist(list_ddg_exp)
+list_exp <- list("systems" = sys, "mut" = mut, "ddg_exp" = ddg_exp)
+fold <- as.data.frame(list_exp)
+# Get rest of the energy terms into the df
+col_names_f <- fns_f
+col_names_f <- sub("[.]txt", "", col_names_f)
+#col_names_f <- col_names_f[!(col_names_f %in% c("ddg_exp","mut","total"))] #If want to exclude total
+col_names_f <- col_names_f[!(col_names_f %in% c("ddg_exp","mut"))] #include total
+list_vals <- list()
+for (i in 1:length(col_names_f)){
+  vals_i <- list()
+  for (j in 1:length(dns_f)){
+    vals_i[[j]] <- read.table(paste(path_f,dns_f[j],"/",col_names_f[i],".txt",sep=""))[1]
+  }
+  list_vals[[col_names_f[i]]] <- unlist(vals_i)
+}
+# Combine into a single df
+fold <- cbind(fold, as.data.frame(list_vals))
+# Add "error" columne
+fold$error <- abs(fold$total-fold$ddg_exp)
 ```
+
 
 
 
