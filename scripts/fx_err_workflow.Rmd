@@ -57,6 +57,55 @@ for (i in 1:length(col_names_f)){
 fold <- cbind(fold, as.data.frame(list_vals))
 # Add "error" columne
 fold$error <- abs(fold$total-fold$ddg_exp)
+
+
+# BIND DATA
+# Repeating code with slight modification due to the slight different file str
+# e.g. ddg_exp.txt does not contain sys, mut info as in fold data
+systems <- list()
+for (i in 1:length(sys_names_b)){
+  systems <- append(systems,
+                    rep(sys_names_b[i],nrow(read.table(paste(path_b,"/",dns_b[i],"/mut.txt",sep="")))))
+}
+list_sys <- tolower(unlist(systems))
+# Do mut and ddg_exp for begibnning of the df:
+list_mut <- list()
+list_ddg_exp <- list()
+for (i in 1:length(dns_b)){
+  list_mut[[i]] <- read.table(paste(path_b,dns_b[i],"/mut.txt",sep=""))
+  #list_ddg_exp[[i]] <- read.table(paste(path_b,dns_b[i],"/ddg_exp.txt",sep="")) # see below section
+}
+
+#---------------new section to read in corrected ddg_exp files ----------------
+path_exp_b <- "../data/binding_exp/"
+for (i in 1:length(dns_b)){
+  list_ddg_exp[[i]] <- read.table(paste(path_exp_b,sys_names_b[i],"/",sys_names_b[i],"_ddg_exp.txt",
+                                        sep = ""))}
+#------------------------------------------------------------------------------
+
+mut <- unlist(list_mut)
+ddg_exp <- unlist(list_ddg_exp)
+list_exp <- list("systems"=list_sys,"mut"=mut,"ddg_exp"=ddg_exp)
+bind <- as.data.frame(list_exp)
+
+# Get rest of the values into the df
+# first columns - values
+col_names_b <- fns_b
+col_names_b <- sub("[.]txt","",col_names_b)
+#col_names_b <- col_names_b[!(col_names_b %in% c("ddg_exp","mut","total"))] #If want to exclude total
+col_names_b <- col_names_b[!(col_names_b %in% c("ddg_exp","mut"))] #include total
+list_vals <- list()
+for (i in 1:length(col_names_b)){
+  vals_i <- list()
+  for (j in 1:length(dns_b)){
+    vals_i[[j]] <- read.table(paste(path_b,dns_b[j],"/",col_names_b[i],".txt",sep=""))[1]
+  }
+  list_vals[[col_names_b[i]]] <- unlist(vals_i)
+}
+# Combine into a single df
+bind <- cbind(bind, as.data.frame(list_vals))
+# Add "error" columne
+bind$error <- abs(bind$total-bind$ddg_exp)
 ```
 
 
