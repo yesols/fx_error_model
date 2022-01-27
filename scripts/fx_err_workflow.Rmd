@@ -280,13 +280,102 @@ fold$str <- as.factor(fold$str)
 bind$str <- as.factor(bind$str)
 ```
 
-Remove columns that will not be needed:
+Remove columns that will not be in the model search:
 ```{r}
 omit_f <- which(names(fold) %in% c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
 omit_b <- which(names(bind) %in% c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
 fold_tr <- fold[-omit_f]
 bind_tr <- bind[-omit_b]
 ```
+
+
+## FoldX-only data (no MD)
+
+Read in data:
+```{r}
+# datasets with foldX only (no MD)
+path_fx <- "../data/fold_xstal_data/"
+path_bx <- "../data/bind_xstal_data/"
+dns_fx <- sort(list.files(path_fx))
+dns_bx <- sort(list.files(path_bx))
+fns_fx <- list.files(paste(path_fx, dns_fx[1], sep=""))
+fns_bx <- list.files(paste(path_bx, dns_bx[1], sep=""))
+sys_names_fx <- sapply(strsplit(dns_f,"_"),"[",1)
+sys_names_bx <- sapply(strsplit(dns_bx,"_"),"[",1)
+
+## FOLD DATA
+# sys, mut, ddg_exp info saved as foldx, bindx dataframes.
+# read in foldX output values
+col_names_fx <- fns_fx
+col_names_fx <- sub("ddg_0_","",col_names_fx)
+col_names_fx <- sub("[.]dat","",col_names_fx)
+list_vals <- list()
+for (i in 1:length(col_names_fx)){
+  vals_i <- list()
+  for (j in 1:length(dns_fx)){
+    vals_i[[j]] <- read.table(paste(path_fx,dns_fx[j],"/",fns_fx[i],sep=""))[1]
+  }
+  list_vals[[col_names_fx[i]]] <- unlist(vals_i)
+}
+df_vals_fx <- as.data.frame(list_vals) # convert list of values as df for cleanup
+# rows 676-702 are duplicates of 27 rows of 2abd. Delete these rows.
+df_vals_fx <- df_vals_fx[1:675,]
+# Combine into a single df
+foldx <- cbind(foldx, df_vals_fx)
+# Add "error" columne
+foldx$error <- abs(foldx$total-foldx$ddg_exp)
+
+# Remove energy terms that have only zeroes:
+zeroes_fx <- vector()
+for (i in 3:length(colnames(foldx))){
+  if (sum(foldx[,i])==0){
+    zeroes_fx <- c(zeroes_fx, i)
+  }
+}
+foldx <- foldx[-zeroes_fx]
+
+## BIND DATA
+col_names_bx <- fns_bx
+col_names_bx <- sub("ddg_000_","",col_names_bx)
+col_names_bx <- sub("[.]dat","",col_names_bx)
+list_vals <- list()
+for (i in 1:length(col_names_bx)){
+  vals_i <- list()
+  for (j in 1:length(dns_bx)){
+    vals_i[[j]] <- read.table(paste(path_bx,dns_bx[j],"/",fns_bx[i],sep=""))[1]
+  }
+  list_vals[[col_names_bx[i]]] <- unlist(vals_i)
+}
+# Combine into a single df
+bindx <- cbind(bindx, as.data.frame(list_vals))
+# Add "error" columne
+bindx$error <- abs(bindx$total-bindx$ddg_exp)
+
+# Remove energy terms that have only zeroes:
+zeroes_bx <- vector()
+for (i in 3:length(colnames(bindx))){
+  if (sum(bindx[,i])==0){
+    zeroes_bx <- c(zeroes_bx, i)
+  }
+}
+bindx <- bindx[-zeroes_bx]
+
+```
+
+Remove columns that will not be in the model search:
+```{r}
+omit_fx <- which(names(foldx) %in% c("ddg_exp","systems","mut"))
+omit_bx <- which(names(bindx) %in% c("ddg_exp","systems","mut"))
+foldx_tr <- foldx[-omit_fx]
+bindx_tr <- bindx[-omit_bx]
+```
+
+
+After running above codes, dataframes we get are:
+- foldx/bindx: FoldX-only values with system, mut, ddg_exp info
+- foldx_tr/bindx_tr: systems, mut, ddg_exp removed from above. Use for model training
+- fold/bind: FoldX values + sd (from MD sim) + other info (RSA, structure, etc)
+- fold_tr/bind_tr: Use for model training
 
 
 
