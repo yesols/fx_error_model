@@ -11,7 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Organize data files
+## Organize molecular modeling data values into dataframes
 
 FoldX datasets from MD snapshots are in /data directory. These text files are read and organized into arrays for further manipulation and analysis.
 
@@ -108,6 +108,185 @@ bind <- cbind(bind, as.data.frame(list_vals))
 bind$error <- abs(bind$total-bind$ddg_exp)
 ```
 
+Save sys, mut, ddg_exp columns for FoldX-only dataframes later:
+```{r}
+foldx <- fold[c("systems","mut","ddg_exp")]
+bindx <- bind[c("systems","mut","ddg_exp")]
+```
+
+Each data txt files contain their sd (from MD snapshots). Add these as variables in the model as needed:
+```{r}
+# sd (second col of the data files) - Fold
+list_sd_f <- list()
+for (i in 1:length(col_names_f)){
+  sd_i <- list()
+  for (j in 1:length(dns_f)){
+    sd_i[[j]] <- read.table(paste(path_f, dns_f[j],"/",col_names_f[i],".txt",sep=""))[2]
+  }
+  list_sd_f[[paste(col_names_f[i],"_sd",sep="")]] <- unlist(sd_i)
+}
+fold <- cbind(fold, as.data.frame(list_sd_f))
+
+# Bind
+list_sd_b <- list()
+for (i in 1:length(col_names_b)){
+  sd_i <- list()
+  for (j in 1:length(dns_b)){
+    sd_i[[j]] <- read.table(paste(path_b, dns_b[j],"/",col_names_b[i],".txt",sep=""))[2]
+  }
+  list_sd_b[[paste(col_names_b[i],"_sd",sep="")]] <- unlist(sd_i)
+}
+bind <- cbind(bind, as.data.frame(list_sd_b))
+```
+
+Some energy terms are zero. Remove these.
+```{r}
+zeroes_f <- vector()
+for (i in 3:length(colnames(fold))){
+  if (sum(fold[,i])==0){
+    zeroes_f <- c(zeroes_f, i)
+  }
+}
+fold <- fold[-zeroes_f]
+
+zeroes_b <- vector()
+for (i in 3:length(colnames(bind))){
+  if (sum(bind[,i])==0){
+    zeroes_b <- c(zeroes_b, i)
+  }
+}
+bind <- bind[-zeroes_b]
+```
+
+
+## Calculate and add other amino acid characteristics
+
+Put reference values for VDW volumes, pK, hydrophobicity index, and charge in a named list. This will be looked up in calculating changes of these values in each mutation in dataset.
+```{r}
+# AA and their properties (ref: textbook, Sigma Aldrich reference chart)
+AAs <- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V")
+vdw <- c(67,167,148,67,86,114,109,48,118,124,124,135,124,135,90,73,93,163,141,105) # vdw volume in angstrom^3
+pK <- c(NA,12.48,NA,3.65,8.18,NA,4.25,NA,6,NA,NA,10.53,NA,NA,NA,NA,NA,NA,NA,NA) # pK of charged groups
+HI <- c(41,-14,-28,-55,49,-10,-31,0,8,99,97,-23,74,100,-46,-5,13,97,63,76) # Pro: at pH2 
+charge <- c(0,1,0,-1,0,0,-1,0,1,0,0,1,0,0,0,0,0,0,0,0) # plain electrical charge
+listAA <- list(vdw, pK, HI, charge)
+for (i in 1:length(listAA)){
+  names(listAA[[i]]) <- AAs
+}
+names(listAA) <- c("vdw", "pK", "HI", "charge")
+```
+
+Create new columns for AA change information for characteristics such as changes in VDW volumne, charge, etc.
+```{r}
+# Separate out AA changes:
+fold$AAfrom <- sapply(as.character(fold$mut), function(x) strsplit(x, "")[[1]][1])
+fold$AAto <- sapply(as.character(fold$mut), function(x) strsplit(x, "")[[1]][length(strsplit(x, "")[[1]])])
+fold$chain <- sapply(as.character(fold$mut), function(x) strsplit(x, "")[[1]][2])
+fold$residue <- gsub('\\D', '', fold$mut)
+fold$ch_res <- paste(fold$chain, fold$residue, sep = "") # for matching with dssp rows later
+
+bind$AAfrom <- sapply(as.character(bind$mut), function(x) strsplit(x, "")[[1]][1])
+bind$AAto <- sapply(as.character(bind$mut), function(x) strsplit(x, "")[[1]][length(strsplit(x, "")[[1]])])
+bind$chain <- sapply(as.character(bind$mut), function(x) strsplit(x, "")[[1]][2])
+bind$residue <- gsub('\\D', '', bind$mut)
+bind$ch_res <- paste(bind$chain, bind$residue, sep = "")
+
+# Create columns with AA info:
+# Proline yes or no
+# size change (use vdw volume)
+# hydrophobicity change (HI)
+
+# Proline
+fold$P <- ifelse(fold$AAfrom == "P" & fold$AAto != "P", 1, 
+                     ifelse(fold$AAfrom != "P" & fold$AAto == "P", 1, 0))
+bind$P <- ifelse(bind$AAfrom == "P" & bind$AAto != "P", 1, 
+                     ifelse(bind$AAfrom != "P" & bind$AAto == "P", 1, 0))
+# Size change (using vdw volume)
+fold$volchange <- abs(listAA$vdw[fold$AAto] - listAA$vdw[fold$AAfrom])
+bind$volchange <- abs(listAA$vdw[bind$AAto] - listAA$vdw[bind$AAfrom])
+# Hydrophobicity change
+fold$HIchange <- abs(listAA$HI[fold$AAto] - listAA$HI[fold$AAfrom])
+bind$HIchange <- abs(listAA$HI[bind$AAto] - listAA$HI[bind$AAfrom])
+# Charge change
+fold$charge <- abs(listAA$charge[fold$AAto] - listAA$charge[fold$AAfrom])
+bind$charge <- abs(listAA$charge[bind$AAto] - listAA$charge[bind$AAfrom])
+```
+
+For RSA and secondary structure info, methods from Wilke et al were used with DSSP (DSSP usage: https://swift.cmbi.umcn.nl/gv/dssp/DSSP_3.html). DSSP output files have been modified in Excel to cut header and separate out columns.
+```{r}
+# FOLD
+# Read in each dssp files into a list of dataframes
+dssps_f <- list()
+for (i in 1:length(sys_names_f)) {
+  dssps_f[[i]] <- read.csv(paste("../data/dssp/fold/sys",
+                                 sys_names_f[i], ".dssp.csv", sep = ""))
+  dssps_f[[i]]$ch_res <- paste(dssps_f[[i]]$CHAIN, dssps_f[[i]]$RESIDUE, sep = "") 
+  dssps_f[[i]]$STR <- sapply(dssps_f[[i]]$STR, as.character) # without it, reads as factor
+}
+names(dssps_f) <- sys_names_f
+# Match each mut to DSSP entry and add ACC and sec str info to the master df
+for (r in 1:nrow(fold)){
+  dssp_tmp <- dssps_f[[fold$systems[r]]]
+  chres_tmp <- fold$ch_res[r]
+  if (chres_tmp %in% dssp_tmp$ch_res){
+    fold$str[r] <- dssp_tmp[which(dssp_tmp$ch_res==chres_tmp),]$STR
+    fold$ACC[r] <- dssp_tmp[which(dssp_tmp$ch_res==chres_tmp),]$ACC
+  } else {
+    print(paste("(fold) no match for:", fold$systems[r], fold$ch_res[r], 
+                "- Will remove row", r, sep = " "))
+    fold$str[r] <- NA
+    fold$ACC[r] <- NA
+  }
+}
+# Remove "no match" entries from master df (gets error later on otherwise) (there are only 3)
+fold <- na.omit(fold)
+
+# BIND
+# Read in each dssp files into a list of data frames
+dssps_b <- list()
+for (i in 1:length(sys_names_b)) {
+  dssps_b[[i]] <- read.csv(paste("../data/dssp/bind/sys",
+                                 sys_names_b[i], ".dssp.csv", sep = ""))
+  dssps_b[[i]]$ch_res <- paste(dssps_b[[i]]$CHAIN, dssps_b[[i]]$RESIDUE, sep = "")
+  dssps_b[[i]]$STR <- sapply(dssps_b[[i]]$STR, as.character)
+}
+names(dssps_b) <- sys_names_b
+# Match each mut to DSSP entry and add ACC and sec str info to the master df
+for (r in 1:nrow(bind)){
+  dssp_tmp <- dssps_b[[bind$systems[r]]]
+  chres_tmp <- bind$ch_res[r]
+  if (chres_tmp %in% dssp_tmp$ch_res){
+    bind$str[r] <- dssp_tmp[which(dssp_tmp$ch_res==chres_tmp),]$STR
+    bind$ACC[r] <- dssp_tmp[which(dssp_tmp$ch_res==chres_tmp),]$ACC
+  } else {
+    print(paste("(bind) no match for:", bind$systems[r], bind$ch_res[r],
+                "- Will remove row", r, sep = " "))
+    bind$str[r] <- NA
+    bind$ACC[r] <- NA
+  }
+}
+bind <- na.omit(bind)
+
+# RSA calculation
+# Table S1 values (Wilke et al)
+# Recommended (ALLOWED category) maximum SA values - do empirical values
+max_emp <- c(121,265,187,187,148,214,214,97,216,195,191,230,203,228,154,143,163,264,255,166)
+names(max_emp) <- AAs
+fold$RSA <- fold$ACC/max_emp[fold$AAfrom]
+bind$RSA <- bind$ACC/max_emp[bind$AAfrom]
+fold$str[fold$str==""] <- "NONE"
+bind$str[bind$str==""] <- "NONE"
+fold$str <- as.factor(fold$str)
+bind$str <- as.factor(bind$str)
+```
+
+Remove columns that will not be needed:
+```{r}
+omit_f <- which(names(fold) %in% c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
+omit_b <- which(names(bind) %in% c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
+fold_tr <- fold[-omit_f]
+bind_tr <- bind[-omit_b]
+```
 
 
 
