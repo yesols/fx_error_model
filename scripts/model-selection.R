@@ -93,7 +93,7 @@ mods <- list(mod_step_aic_f, mod_step_bic_f,
              mod_subset_bx)
 
 
-#saveRDS(mods, "outputs/models")
+#saveRDS(mods, "outputs/models.rds")
 
 
 
@@ -101,7 +101,7 @@ mods <- list(mod_step_aic_f, mod_step_bic_f,
 
 
 
-mods <- readRDS("outputs/models")
+mods <- readRDS("outputs/models.rds")
 
 # formulas for later 
 #(full best subset names won't work this way because of strE, strNONE, etc)
