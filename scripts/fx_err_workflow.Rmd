@@ -289,6 +289,7 @@ bind_tr <- bind[-omit_b]
 ```
 
 
+
 ## FoldX-only data (no MD)
 
 Read in data:
@@ -376,6 +377,23 @@ After running above codes, dataframes we get are:
 - foldx_tr/bindx_tr: systems, mut, ddg_exp removed from above. Use for model training
 - fold/bind: FoldX values + sd (from MD sim) + other info (RSA, structure, etc)
 - fold_tr/bind_tr: Use for model training
+
+
+Save dataframes in outputs/
+```{r}
+write.csv(foldx, "../outputs/table_fxonly_f.csv", row.names = F)
+write.csv(bindx, "../outputs/table_fxonly_b.csv", row.names = F)
+write.csv(foldx_tr, "../outputs/tr_table_fxonly_f.csv", row.names = F)
+write.csv(bindx_tr, "../outputs/tr_table_fxonly_b.csv", row.names = F)
+
+write.csv(fold, "../outputs/table_full_f.csv", row.names = F)
+write.csv(bind, "../outputs/table_full_b.csv", row.names = F)
+write.csv(fold_tr, "../outputs/tr_table_full_f.csv", row.names = F)
+write.csv(bind_tr, "../outputs/tr_table_full_b.csv", row.names = F)
+```
+
+
+
 
 
 
