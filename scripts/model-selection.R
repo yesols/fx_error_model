@@ -89,44 +89,22 @@ subset_terms_bx <- coef(mod_subset_bx, which.min(summary(mod_subset_bx)$bic))
 
 ### Save models as RDS ###
 
-mods <- list(mod_step_aic_f, mod_step_bic_f,
-             mod_step_aic_b, mod_step_bic_b,
-             mod_step_aic_fx, mod_step_bic_fx,
-             mod_step_aic_bx, mod_step_bic_bx,
-             mod_subset_f,
-             mod_subset_b,
-             mod_subset_fx,
-             mod_subset_bx)
+mods <- list(mod_step_aic_f = mod_step_aic_f, mod_step_bic_f = mod_step_bic_f,
+             mod_step_aic_b = mod_step_aic_b, mod_step_bic_b = mod_step_bic_b,
+             mod_step_aic_fx = mod_step_aic_fx, mod_step_bic_fx = mod_step_bic_fx,
+             mod_step_aic_bx = mod_step_aic_bx, mod_step_bic_bx = mod_step_bic_bx,
+             mod_subset_f = mod_subset_f,
+             mod_subset_b = mod_subset_b,
+             mod_subset_fx = mod_subset_fx,
+             mod_subset_bx = mod_subset_bx)
 
 
-#saveRDS(mods, "outputs/models.rds")
-
-
+saveRDS(mods, "outputs/models.rds")
 
 
 
 
 
-mods <- readRDS("outputs/models.rds")
-
-
-################ might delete below #############
-
-
-
-
-# formulas for later 
-#(full best subset names won't work this way because of strE, strNONE, etc)
-stepformula_f <- formula(sum_step_f$terms)
-stepformula_b <- formula(sum_step_b$terms)
-stepformula_fx <- formula(sum_step_fx$terms)
-stepformula_bx <- formula(sum_step_bx$terms)
-subsetformula_fx <- as.formula(paste("error~", 
-                                     paste(names(subset_terms_fx[-1]), 
-                                           collapse="+"), sep=""))
-subsetformula_bx <- as.formula(paste("error~", 
-                                     paste(names(subset_terms_bx[-1]), 
-                                           collapse="+"), sep=""))
 
 
 
