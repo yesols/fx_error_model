@@ -1,3 +1,9 @@
+### Summary ###
+# input: csv files (organized data tables)
+# Model selection using stepwise selection and best subset selection
+# output: models.rds (list of 12 models selected from above)
+
+
 library(leaps)
 
 
@@ -102,6 +108,12 @@ mods <- list(mod_step_aic_f, mod_step_bic_f,
 
 
 mods <- readRDS("outputs/models.rds")
+
+
+################ might delete below #############
+
+
+
 
 # formulas for later 
 #(full best subset names won't work this way because of strE, strNONE, etc)
