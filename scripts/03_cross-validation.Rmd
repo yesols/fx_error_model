@@ -1,0 +1,57 @@
+---
+title: "Cross Validation"
+author: "Yesol Sapozhnikov"
+date: "3/4/2022"
+output: html_document
+---
+
+## Purpose of this script
+
+This script performs ad-hoc LOOCV to further select best-performing models from the results of 02_model-selection.R script. We use a modified leave-one-out nethod in which all data points from a system is left out instead of each data point. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+
+# FoldX-only tables:
+foldx <- read.csv("../outputs/table_fxonly_f.csv")
+bindx <- read.csv("../outputs/table_fxonly_b.csv")
+
+# selected models from stepwise & best subset selection
+mods <- readRDS("../outputs/models.rds")
+
+# source LOsysOCV function
+source("../scripts/fn_loocv.R")
+```
+
+
+## Pick between stepwise and best subset selection
+
+```{r}
+# Create a summary table
+models <- names(mods)
+methods <- c(rep("stepwise", 4), rep("best subset", 4))
+datasets <-rep(c(rep("full", 2), rep("fx-only", 2)), 2)
+energy <- c(rep(c("folding", "binding"), 4))
+sum_table <- data.frame(models, methods, datasets, energy)
+
+# Compute each model through fn_loocv and collect metrics
+datasets_ls <- list(fold, bind, foldx, bindx, fold, bind, foldx, bindx)
+for (i in 1:length(mods)){
+  sum_table$adj_r2[i] <- summary(mods[[i]])$adj.r.squared
+  out <- loocv(formula(mods[[i]]), datasets_ls[[i]])
+  sum_table$coverage[i] <- out$coverage
+  sum_table$med_upr_bd[i] <- out$med_upr_bd
+}
+sum_table
+```
+
+
+
+
+

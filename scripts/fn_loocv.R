@@ -35,7 +35,8 @@ loocv <- function(f, dataset){ #inpu: lm formula, dataframe (e.g. fold or bind)
   df$test <- df$error < df$upr #not testing df$error > df$lwr as in original code
   out <- list()
   out$formula <- f
-  out$means <- c(mean(df$test), mean(df$upr)) #mean coverage, mean interval width
   out$df <- df
+  out$coverage <- mean(df$test)
+  out$med_upr_bd <- median(df$upr) 
   return(out)
 }  
