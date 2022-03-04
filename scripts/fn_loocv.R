@@ -26,6 +26,7 @@ loocv <- function(f, dataset){ #inpu: lm formula, dataframe (e.g. fold or bind)
     lm_i$xlevels[["str"]] <- str_values #to prevent errors when some levels don't exist
     pred_i <- predict(lm_i, newdata = vset, interval = "prediction")
     for (r in 1:nrow(pred_i)){
+      row_i <- rownames(pred_i)[r]
       df[rownames(df) == row_i, "err_pred"] <- pred_i[rownames(pred_i) == row_i, "fit"]
       df[rownames(df) == row_i, "lwr"] <- pred_i[rownames(pred_i) == row_i, "lwr"]
       df[rownames(df) == row_i, "upr"] <- pred_i[rownames(pred_i) == row_i, "upr"]
