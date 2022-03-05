@@ -14,6 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+# load packages
+library(tidyverse)
+
 # Full tables:
 fold <- read.csv("../outputs/table_full_f.csv")
 bind <- read.csv("../outputs/table_full_b.csv")
@@ -48,10 +51,46 @@ for (i in 1:length(mods)){
   sum_table$coverage[i] <- out$coverage
   sum_table$med_upr_bd[i] <- out$med_upr_bd
 }
+sum_table <- as_tibble(sum_table)
 sum_table
 ```
 
+Folding energy dataset (full): Best subset
+Best subset has better adj_r2 with slight larger med_upr_bd. Probably a better choice in that the max outlier upr in best subset is less than that in stepwise.
 
+```{r}
+print(paste("stepwise terms:", as.character(formula(mods$mod_step_f))[3]))
+print(paste("best subset terms:", as.character(formula(mods$mod_subset_f))[3]))
+sum_table %>% filter(datasets == "full", energy == "folding") %>% 
+  select(methods, adj_r2, coverage, med_upr_bd)
+```
 
+Binding energy dataset (full): Best subset
+adj_r2 and med_upr_bd are very similar. Best subset is about 1 point better in coverage.
 
+```{r}
+print(paste("stepwise terms:", as.character(formula(mods$mod_step_b))[3]))
+print(paste("best subset terms:", as.character(formula(mods$mod_subset_b))[3]))
+sum_table %>% filter(datasets == "full", energy == "binding") %>% 
+  select(methods, adj_r2, coverage, med_upr_bd)
+```
+
+Folding energy dataset (fx-only): Best subset
+Both with terrible r2! Best subset slightly better on all three metrics.
+
+```{r}
+print(paste("stepwise terms:", as.character(formula(mods$mod_step_fx))[3]))
+print(paste("best subset terms:", as.character(formula(mods$mod_subset_fx))[3]))
+sum_table %>% filter(datasets == "fx-only", energy == "folding") %>% 
+  select(methods, adj_r2, coverage, med_upr_bd)
+```
+
+Binding energy dataset (fx-only): selected terms are identical in both methods. choose any.
+
+```{r}
+print(paste("stepwise terms:", as.character(formula(mods$mod_step_bx))[3]))
+print(paste("best subset terms:", as.character(formula(mods$mod_subset_bx))[3]))
+sum_table %>% filter(datasets == "fx-only", energy == "binding") %>% 
+  select(methods, adj_r2, coverage, med_upr_bd)
+```
 
