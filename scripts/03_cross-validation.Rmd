@@ -29,7 +29,7 @@ bindx <- read.csv("../outputs/table_fxonly_b.csv")
 mods <- readRDS("../outputs/models.rds")
 
 # source LOsysOCV function
-source("../scripts/fn_loocv.R")
+source("../scripts/functions.R")
 ```
 
 
