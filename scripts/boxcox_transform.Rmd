@@ -1,0 +1,125 @@
+---
+title: "Box-Cox transformation"
+author: "Yesol Sapozhnikov"
+date: "4/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load
+
+```{r}
+library(MASS)
+library(leaps)
+library(tidyverse)
+library(ggfortify)
+source("functions.R")
+
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+fold_tr <- read.csv("../outputs/tr_table_full_f.csv")
+bind_tr <- read.csv("../outputs/tr_table_full_b.csv")
+```
+
+
+## Parameter search for Box-Cox
+
+```{r}
+m <- lm(error ~ energy_vdw + energy_vdwclash + entropy_sidec + total_sd + P + str,
+        data = fold)
+bc <- boxcox(m, lambda = seq(-1, 1))
+best_lambda <- bc$x[which(bc$y == max(bc$y))]
+best_lambda
+```
+
+
+## LOOCV using transformed variable
+
+Fold data
+```{r}
+f <- formula(error ~ energy_vdw + energy_vdwclash + entropy_sidec + total_sd + P + str)
+# metrics before transform
+out1f <- loocv(f, fold)
+m1f <- lm(f, fold)
+# Transform error column 
+fold$error_t <- bc_transform(fold$error, 0.4)
+f <- formula(error_t ~ energy_vdw + energy_vdwclash + entropy_sidec + total_sd + P + str)
+out2f <- loocv_t(f, fold)
+m2f <- lm(f, fold)
+upr_rev_f <- bc_reverse(out2f$df$upr, 0.4)
+```
+Bind data
+```{r}
+f <- formula(error ~ energy_vdwclash + backbone_vdwclash_sd + energy_vdwclash_sd + entropy_sidec_sd + total_sd + str + RSA)
+# metrics before transform
+out1b <- loocv(f, bind)
+m1b <- lm(f, bind)
+# Transform error column 
+bind$error_t <- bc_transform(bind$error, 0.4)
+f <- formula(error_t ~ energy_vdwclash + backbone_vdwclash_sd + energy_vdwclash_sd + entropy_sidec_sd + total_sd + str + RSA)
+out2b <- loocv_t(f, bind)
+m2b <- lm(f, bind)
+upr_rev_b <- bc_reverse(out2b$df$upr, 0.4)
+
+```
+
+## Model diagnostics
+
+Before transformation:
+```{r}
+autoplot(m1f)
+```
+
+After transformation:
+```{r}
+autoplot(m2f)
+```
+
+
+
+Compare metrics
+```{r}
+result_df <- data.frame(error = c(rep(fold$error, 2), rep(bind$error, 2)),
+                        pred_upr = c(out1f$df$upr, upr_rev_f, out1b$df$upr, upr_rev_b),
+                        dataset = c(rep("fold", nrow(fold)*2), rep("bind", nrow(bind)*2)),
+                        transform = c(rep("none", nrow(fold)), rep("bc", nrow(fold)),
+                                      rep("none", nrow(bind)), rep("bc", nrow(bind))),
+                        index = c(rep(seq(1:nrow(fold)), 2), rep(seq(1:nrow(bind)),2)),
+                        test = c(out1f$df$test, out2f$df$test, out1b$df$test, out2b$df$test)
+                        )
+result_df$dataset <- factor(result_df$dataset, levels = c("fold", "bind"))
+result_df$transform <- factor(result_df$transform, levels = c("none", "bc"))
+
+result_df %>% group_by(dataset, transform) %>% 
+  summarise(coverage = mean(test),
+            median_width = median(pred_upr))
+```
+
+
+```{r}
+annotate_text <- data.frame(label = c("cov = 0.946, med width = 2.89", "cov = 0.976, med width = 3.26",
+                                      "cov = 0.948, med width = 3.47", "cov = 0.951, med width = 3.68"),
+                            dataset = c("fold", "fold", "bind", "bind"),
+                            transform = c("none", "bc", "none", "bc"))
+result_df %>% arrange(pred_upr) %>% 
+  ggplot(aes(x = seq_along(error), y = error)) +
+  geom_point(aes(color = test), show.legend = FALSE) +
+  scale_color_manual(values = c("red", "black")) +
+  geom_line(aes(x = seq_along(pred_upr), y = pred_upr), color = "blue") +
+  facet_grid(rows = vars(dataset), cols = vars(transform)) +
+  coord_cartesian(ylim = c(0, 15)) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  geom_text(data = annotate_text, aes(x = Inf, y = Inf, label = label),
+            hjust = 1.4, vjust = 3)
+```
+
+```{r}
+ggsave("../figures/compare_bc_transform.png", width = 7, height = 5)
+```
+
+

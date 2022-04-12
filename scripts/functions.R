@@ -1,3 +1,9 @@
+# Box-cox transformation for a given lambda:
+# Input a vector and a non-zero lambda
+bc_transform <- function(y, lambda) (y^lambda - 1)/lambda
+bc_reverse <- function(y_bc, lambda) (lambda*y_bc + 1)^(1/lambda)
+
+
 # Input training dataset (non-parameter columns removed) to perform
 # stepwise selection using BIC 
 run_stepwise <- function(dataset){
@@ -58,6 +64,40 @@ loocv <- function(f, dataset){ #inpu: lm formula, dataframe (e.g. fold or bind)
     }
   }
   df$test <- df$error < df$upr #not testing df$error > df$lwr as in original code
+  out <- list()
+  out$formula <- f
+  out$df <- df
+  out$coverage <- mean(df$test)
+  out$med_upr_bd <- median(df$upr) 
+  return(out)
+}  
+
+
+# modified version (response variable is named "error_t" instead of "error") to use 
+# on box-cox transformed dataset (used in boxcox_transform.Rmd)
+
+loocv_t <- function(f, dataset){ #inpu: lm formula, dataframe (e.g. fold or bind)
+  df <- dataset[c("systems", "mut", "ddg_exp", "total", "error_t")]
+  df$err_pred <- NA
+  df$lwr <- NA
+  df$upr <- NA
+  df$test <- NA
+  sys <- unique(dataset$systems)
+  str_values <- unique(dataset$str) #vector of all existing str as produced by dssp
+  for (i in 1:length(sys)){
+    tset <- dataset[dataset$systems != sys[i], ]
+    vset <- dataset[dataset$systems == sys[i], ]
+    lm_i <- lm(formula = f, data = tset)
+    lm_i$xlevels[["str"]] <- str_values #to prevent errors when some levels don't exist
+    pred_i <- predict(lm_i, newdata = vset, interval = "prediction")
+    for (r in 1:nrow(pred_i)){
+      row_i <- rownames(pred_i)[r]
+      df[rownames(df) == row_i, "err_pred"] <- pred_i[rownames(pred_i) == row_i, "fit"]
+      df[rownames(df) == row_i, "lwr"] <- pred_i[rownames(pred_i) == row_i, "lwr"]
+      df[rownames(df) == row_i, "upr"] <- pred_i[rownames(pred_i) == row_i, "upr"]
+    }
+  }
+  df$test <- df$error_t < df$upr #not testing df$error > df$lwr as in original code
   out <- list()
   out$formula <- f
   out$df <- df

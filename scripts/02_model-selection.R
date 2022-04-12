@@ -5,6 +5,7 @@
 
 
 library(leaps)
+source("scripts/functions.R")
 
 
 ###   Read in organized data tables    ###
@@ -29,25 +30,35 @@ bindx_tr <- read.csv("outputs/tr_table_fxonly_b.csv")
 
 # Full dataset
 
-fold_min <- lm(error~1, data=fold_tr)
-fold_full <- lm(error~., data=fold_tr)
-mod_step_aic_f <- step(object = fold_min,
-                   scope = list(lower=fold_min, upper=fold_full),
-                   direction = "both")  
-mod_step_bic_f <- step(object = fold_min, 
-                    scope = list(lower=fold_min, upper=fold_full),
-                    direction = "both",
-                    k = log(nrow(fold_tr))) 
+# fold_min <- lm(error~1, data=fold_tr)
+# fold_full <- lm(error~., data=fold_tr)
+# mod_step_aic_f <- step(object = fold_min,
+#                    scope = list(lower=fold_min, upper=fold_full),
+#                    direction = "both")  
+# mod_step_bic_f <- step(object = fold_min, 
+#                     scope = list(lower=fold_min, upper=fold_full),
+#                     direction = "both",
+#                     k = log(nrow(fold_tr))) 
 
-bind_min <- lm(error~1, data=bind_tr)
-bind_full <- lm(error~., data=bind_tr)
-mod_step_aic_b <- step(object = bind_min,
-                   scope = list(lower=bind_min, upper=bind_full),
-                   direction = "both") 
-mod_step_bic_b <- step(object = bind_min,
-                       scope = list(lower=bind_min, upper=bind_full),
-                       direction = "both",
-                       k = log(nrow(bind_tr))) 
+
+mod_step_f <- run_stepwise(fold_tr)
+
+
+# bind_min <- lm(error~1, data=bind_tr)
+# bind_full <- lm(error~., data=bind_tr)
+# mod_step_aic_b <- step(object = bind_min,
+#                    scope = list(lower=bind_min, upper=bind_full),
+#                    direction = "both") 
+# mod_step_bic_b <- step(object = bind_min,
+#                        scope = list(lower=bind_min, upper=bind_full),
+#                        direction = "both",
+#                        k = log(nrow(bind_tr))) 
+
+
+mod_step_b <- run_stepwise(bind_tr)
+
+
+
 # FoldX-only dataset:
 
 foldx_min <- lm(error~1, data=foldx_tr)
