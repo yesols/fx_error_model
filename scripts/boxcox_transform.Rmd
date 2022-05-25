@@ -123,3 +123,11 @@ ggsave("../figures/compare_bc_transform.png", width = 7, height = 5)
 ```
 
 
+Decided not to pursue BC transform, as the improvement is negligible and the limitation of the original model fitting is compensated by the empirical method of LOOCV.
+
+
+
+
+
+
+
