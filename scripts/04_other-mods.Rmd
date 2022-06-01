@@ -1,0 +1,115 @@
+---
+title: "Other models"
+author: "Yesol Sapozhnikov"
+date: "5/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Purpose of this script
+
+Apply the same steps to determine models for different combination of datasets (FoldX, or MD + FoldX) and sets of parameters (FoldX energy terms, biochemical/physical properties, MD-associated SD).
+
+
+## Read in data, load packages
+
+```{r}
+library(tidyverse)
+library(leaps)
+
+source("functions.R")
+```
+
+```{r}
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+fold_tr <- read.csv("../outputs/tr_table_full_f.csv")
+bind_tr <- read.csv("../outputs/tr_table_full_b.csv")
+
+# FoldX-only tables:
+foldx <- read.csv("../outputs/table_fxonly_f.csv")
+bindx <- read.csv("../outputs/table_fxonly_b.csv")
+foldx_tr <- read.csv("../outputs/tr_table_fxonly_f.csv")
+bindx_tr <- read.csv("../outputs/tr_table_fxonly_b.csv")
+```
+
+
+
+## Intervening model 1: MD+FX dataset with FX energy terms only
+
+Get models from stepwise selection and best subset for each dataset.
+```{r, include = FALSE}
+data_f <- fold_tr %>% select(backbone_vdwclash:error)
+data_b <- bind_tr %>% select(backbone_vdwclash:error)
+# stepwise selection
+mod1_step_f <- run_stepwise(data_f)
+mod1_step_b <- run_stepwise(data_b)
+# best subset
+mod1_subset_f <- run_subset(data_f)
+mod1_subset_b <- run_subset(data_b)
+```
+
+Cross validation.
+```{r}
+models <- list(fold_stepwise = mod1_step_f, fold_best_subset = mod1_subset_f,
+               bind_stepwise = mod1_step_b, bind_best_subset = mod1_subset_b)
+summary_tab <- data.frame(models = names(models))
+datasets_ls <- list(fold, fold, bind, bind)
+for (i in 1:length(models)){
+  summary_tab$adj_r2[i] <- summary(models[[i]])$adj.r.squared
+  out <- loocv(formula(models[[i]]), datasets_ls[[i]])
+  summary_tab$coverage[i] <- out$coverage
+  summary_tab$med_upr_bd[i] <- out$med_upr_bd
+}
+summary_tab
+
+```
+For folding, best subset model is better. For binding, both methods produced same models.
+```{r}
+mod1_subset_f
+mod1_subset_b
+```
+
+
+## MD+FX dataset with FX energy terms, biochemical predictors
+
+Get models from stepwise selection and best subset for each dataset.
+```{r, include = FALSE}
+data_f <- fold_tr %>% select(-ends_with("sd"))
+data_b <- bind_tr %>% select(-ends_with("sd"))
+# stepwise selection
+mod2_step_f <- run_stepwise(data_f)
+mod2_step_b <- run_stepwise(data_b)
+# best subset
+mod2_subset_f <- run_subset(data_f)
+mod2_subset_b <- run_subset(data_b)
+```
+
+Cross validation.
+```{r}
+models <- list(fold_stepwise = mod2_step_f, fold_best_subset = mod2_subset_f,
+               bind_stepwise = mod2_step_b, bind_best_subset = mod2_subset_b)
+summary_tab <- data.frame(models = names(models))
+datasets_ls <- list(fold, fold, bind, bind)
+for (i in 1:length(models)){
+  summary_tab$adj_r2[i] <- summary(models[[i]])$adj.r.squared
+  out <- loocv(formula(models[[i]]), datasets_ls[[i]])
+  summary_tab$coverage[i] <- out$coverage
+  summary_tab$med_upr_bd[i] <- out$med_upr_bd
+}
+summary_tab
+
+```
+
+## FX dataset with energy terms and biochemical predictors
+
+
+
+
+
+
+

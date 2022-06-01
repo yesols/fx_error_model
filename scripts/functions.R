@@ -23,6 +23,7 @@ run_subset <- function(dataset){
   subsets <- regsubsets(error~., data = dataset, nvmax = 15, really.big = T)
   terms <- names(coef(subsets, which.min(summary(subsets)$bic)))[-1]
   terms <- gsub("str[A-Z]*", "str", terms)
+  terms <- paste(terms, collapse = " + ")
   f <- as.formula(paste("error ~ ", terms))
   lm_mod <- lm(formula = f, data = dataset)
   return(lm_mod)
