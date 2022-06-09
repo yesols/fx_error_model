@@ -9,22 +9,93 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Get data frames for plotting
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Load libraries and build data frames for plots.
+```{r}
+library(tidyverse)
+library(ggpubr)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+# FoldX-only tables:
+foldx <- read.csv("../outputs/table_fxonly_f.csv")
+bindx <- read.csv("../outputs/table_fxonly_b.csv")
+# selected models from stepwise & best subset selection
+mods <- readRDS("../outputs/models.rds")
+# source LOsysOCV function
+source("../scripts/functions.R")
 
-```{r cars}
-summary(cars)
+# Run LOOCV to create dataframes
+loo_fold <- loocv(formula(mods$mod_subset_f), fold)$df
+loo_bind <- loocv(formula(mods$mod_subset_b), bind)$df
 ```
 
-## Including Plots
+## Prediction interval plot with "misses"
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+Overall plots
+```{r}
+errors_all_fold <- loo_fold %>% arrange(upr) %>%
+  ggplot(aes(x = seq_along(error), y = error)) +
+  geom_point(aes(color = test)) +
+  geom_line(aes(x = seq_along(error), y = upr, color = "upper bound")) +
+  scale_color_manual(values = c("red", "black", "blue"),
+                     labels = c("error above bound", "error within bound","predicted upper bound"),
+                     guide = guide_legend(override.aes = list(
+                       linetype = c("blank","blank","solid"),
+                       shape = c(16,16,NA)
+                     ))) +  
+  theme_light() +
+  scale_x_continuous(NULL, breaks = NULL) +
+  labs(title = "Errors with prediction interval", subtitle = "Fold data",
+       y = "error (kcal/mol)") +
+  theme(legend.position = c(0.7,0.8), legend.title = element_blank())
+errors_all_bind <- loo_bind %>% arrange(upr) %>%
+  ggplot(aes(x = seq_along(error), y = error)) +
+  geom_point(aes(color = test)) +
+  geom_line(aes(x = seq_along(error), y = upr, color = "upper bound")) +
+  scale_color_manual(values = c("red", "black", "blue"),
+                     labels = c("error above bound", "error within bound","predicted upper bound"),
+                     guide = guide_legend(override.aes = list(
+                       linetype = c("blank","blank","solid"),
+                       shape = c(16,16,NA)
+                     ))) +  
+  theme_light() +
+  scale_x_continuous(NULL, breaks = NULL) +
+  labs(title = "Errors with prediction interval", subtitle = "bind data",
+       y = "error (kcal/mol)") +
+  theme(legend.position = c(0.7,0.8), legend.title = element_blank())
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Breakdown by system
+```{r}
+errors_sys_fold <- loo_fold %>% arrange(upr) %>%
+  ggplot(aes(y=error,x=seq_along(error))) +
+  geom_point(aes(color=test), show.legend = FALSE) +
+  geom_line(aes(x=seq_along(error), y=upr), color="blue") +
+  scale_color_manual(values = c("#FF0000", "#000000")) +
+  facet_wrap(~systems, nrow = 2) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+errors_sys_bind <- loo_bind %>% arrange(upr) %>% 
+  ggplot(aes(y=error,x=seq_along(error))) +
+  geom_point(aes(color=test), show.legend = FALSE) +
+  geom_line(aes(x=seq_along(error), y=upr), color="blue") +
+  scale_color_manual(values = c("#FF0000", "#000000")) +
+  facet_wrap(~systems, nrow = 2) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+```
+
+Arragne plots
+```{r}
+ggarrange(errors_all_fold, errors_sys_fold, errors_all_bind, errors_sys_bind,
+          labels = c("A","B","C","D"),
+          ncol = 2, nrow = 2)
+ggsave("../figures/errors_sorted.pdf", width = 11, height = 9)
+```
+
+
+
