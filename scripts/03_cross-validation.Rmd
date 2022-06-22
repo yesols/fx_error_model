@@ -108,3 +108,7 @@ sum_table %>% filter(datasets == "fx-only", energy == "binding") %>%
 ```
 
 
+
+
+
+

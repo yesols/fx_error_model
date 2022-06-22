@@ -32,6 +32,25 @@ loo_fold <- loocv(formula(mods$mod_subset_f), fold)$df
 loo_bind <- loocv(formula(mods$mod_subset_b), bind)$df
 ```
 
+## Table: System-by-system breakdown
+
+```{r}
+loo_fold %>% group_by(systems) %>%
+  summarise(n = n(),
+            median_error = median(error),
+            coverage = round(mean(test),2),
+            width = median(upr))
+```
+
+```{r}
+loo_bind %>% group_by(systems) %>%
+  summarise(n = n(),
+            median_error = median(error),
+            coverage = round(mean(test),2),
+            width = median(upr))
+```
+
+
 ## Prediction interval plot with "misses"
 
 Overall plots
@@ -100,4 +119,23 @@ ggsave("../figures/errors_sorted.png", width = 11, height = 9)
 ```
 
 
+## Correlation between ddG and error
 
+```{r}
+ggplot(loo_fold, aes(x = ddg_exp, y = error)) +
+  geom_point(aes(color = test)) +
+  labs(x = "ddG", y = "error")
+```
+```{r}
+ggplot(loo_bind, aes(x = ddg_exp, y = error)) +
+  geom_point(aes(color = test)) +
+  labs(x = "ddG", y = "error")
+```
+
+```{r}
+fold %>% mutate(test = loo_fold$test) %>%
+  ggplot(aes(x = abs(ddg_exp), y = error, color = test)) +
+  geom_point() +
+  facet_wrap(~systems) +
+  scale_color_manual(values = c("red", "blue"))
+```
