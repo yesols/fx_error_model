@@ -134,7 +134,7 @@ ggplot(loo_bind, aes(x = ddg_exp, y = error)) +
 
 ```{r}
 fold %>% mutate(test = loo_fold$test) %>%
-  ggplot(aes(x = abs(ddg_exp), y = error, color = test)) +
+  ggplot(aes(x = energy_vdwclash, y = error, color = test)) +
   geom_point() +
   facet_wrap(~systems) +
   scale_color_manual(values = c("red", "blue"))
