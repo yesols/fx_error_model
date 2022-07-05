@@ -45,7 +45,7 @@ source("../scripts/functions.R")
 
 Fold dataset
 ```{r, warning=FALSE}
-datasets_ls <- list(fold, fold, fold, foldx, foldx, bind, bind, bind, bindx, bindx)
+datasets_ls <- list(foldx, foldx, fold, fold, fold, bindx, bindx, bind, bind, bind)
 sum_table <- data.frame(models = str_split(names(best_mods[1:5]), "_", simplify = T)[,1])
 for (i in 1:5){
   sum_table$adj_r2[i] <- summary(best_mods[[i]])$adj.r.squared
@@ -70,16 +70,16 @@ sum_table
 
 ## Model details: Fold
 
-### Model 1 (MD+FX dataset with all predictors)
+### Model 5 (MD+FX dataset with all predictors)
 
 ```{r}
-summary(best_mods$mod1_fold)
+summary(best_mods$mod5_fold)
 ```
 
-### Model 2 (MD+FX dataset with energy terms and biochemical properties)
+### Model 4 (MD+FX dataset with energy terms and biochemical properties)
 
 ```{r}
-summary(best_mods$mod2_fold)
+summary(best_mods$mod4_fold)
 ```
 
 ### Model 3 (MD+FX dataset with energy terms only)
@@ -88,31 +88,31 @@ summary(best_mods$mod2_fold)
 summary(best_mods$mod3_fold)
 ```
 
-### Model 4 (FX dataset with energy terms and biochemical properties)
+### Model 2 (FX dataset with energy terms and biochemical properties)
 
 ```{r}
-summary(best_mods$mod4_fold)
+summary(best_mods$mod2_fold)
 ```
 
-### Model 5 (FX dataset with energy terms only)
+### Model 1 (FX dataset with energy terms only)
 
 ```{r}
-summary(best_mods$mod5_fold)
+summary(best_mods$mod1_fold)
 ```
 
 
 ## Model details: Bind
 
-### Model 1 (MD+FX dataset with all predictors)
+### Model 5 (MD+FX dataset with all predictors)
 
 ```{r}
-summary(best_mods$mod1_bind)
+summary(best_mods$mod5_bind)
 ```
 
-### Model 2 (MD+FX dataset with energy terms and biochemical properties)
+### Model 4 (MD+FX dataset with energy terms and biochemical properties)
 
 ```{r}
-summary(best_mods$mod2_bind)
+summary(best_mods$mod4_bind)
 ```
 
 ### Model 3 (MD+FX dataset with energy terms only)
@@ -121,14 +121,14 @@ summary(best_mods$mod2_bind)
 summary(best_mods$mod3_bind)
 ```
 
-### Model 4 (FX dataset with energy terms and biochemical properties)
+### Model 2 (FX dataset with energy terms and biochemical properties)
 
 ```{r}
-summary(best_mods$mod4_bind)
+summary(best_mods$mod2_bind)
 ```
 
-### Model 5 (FX dataset with energy terms only)
+### Model 1 (FX dataset with energy terms only)
 
 ```{r}
-summary(best_mods$mod5_bind)
+summary(best_mods$mod1_bind)
 ```
