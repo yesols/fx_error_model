@@ -23,6 +23,7 @@ bind <- read.csv("../outputs/table_full_b.csv")
 
 # FoldX-only tables:
 foldx <- read.csv("../outputs/table_fxonly_f.csv")
+foldx <- foldx[-c(449, 642, 643),]
 bindx <- read.csv("../outputs/table_fxonly_b.csv")
 
 # selected models from stepwise & best subset selection

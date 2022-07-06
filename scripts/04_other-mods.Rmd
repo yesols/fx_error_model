@@ -127,8 +127,12 @@ mod3_subset_b
 
 Get models from stepwise selection and best subset for each dataset.
 ```{r, include = FALSE}
-data_f <- foldx_tr %>% select(-ends_with("sd"))
-data_b <- bindx_tr %>% select(-ends_with("sd"))
+data_f <- fold %>% 
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., foldx_tr)
+data_b <- bind %>%
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., bindx_tr)
 # stepwise selection
 mod2_step_f <- run_stepwise(data_f)
 mod2_step_b <- run_stepwise(data_b)
@@ -142,7 +146,13 @@ Cross validation.
 models <- list(fold_stepwise = mod2_step_f, fold_best_subset = mod2_subset_f,
                bind_stepwise = mod2_step_b, bind_best_subset = mod2_subset_b)
 summary_tab <- data.frame(models = names(models))
-datasets_ls <- list(foldx, foldx, bindx, bindx)
+data_f <- fold %>% 
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., foldx)
+data_b <- bind %>%
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., bindx)
+datasets_ls <- list(data_f, data_f, data_b, data_b)
 for (i in 1:length(models)){
   summary_tab$adj_r2[i] <- summary(models[[i]])$adj.r.squared
   out <- loocv(formula(models[[i]]), datasets_ls[[i]])
@@ -151,7 +161,7 @@ for (i in 1:length(models)){
 }
 summary_tab
 ```
-For folding dataset, best subset model is slightly better. Both methods produce same model for binding. 
+For folding dataset, best subset model is slightly better in coverage. For binding, best subset clearly better.
 
 ```{r}
 mod2_subset_f

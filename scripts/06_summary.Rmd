@@ -45,7 +45,14 @@ source("../scripts/functions.R")
 
 Fold dataset
 ```{r, warning=FALSE}
-datasets_ls <- list(foldx, foldx, fold, fold, fold, bindx, bindx, bind, bind, bind)
+# Must create separate datasets for mod2 that contains fx-only data plus biochem params.
+mod2_data_f <- fold %>% 
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., foldx)
+mod2_data_b <- bind %>%
+  select(P, volchange, HIchange, charge, str, RSA) %>%
+  bind_cols(., bindx)
+datasets_ls <- list(foldx, mod2_data_f, fold, fold, fold, bindx, mod2_data_b, bind, bind, bind)
 sum_table <- data.frame(models = str_split(names(best_mods[1:5]), "_", simplify = T)[,1])
 for (i in 1:5){
   sum_table$adj_r2[i] <- summary(best_mods[[i]])$adj.r.squared

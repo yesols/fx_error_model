@@ -22,7 +22,8 @@ bindx <- read.csv("outputs/table_fxonly_b.csv")
 foldx_tr <- read.csv("outputs/tr_table_fxonly_f.csv")
 bindx_tr <- read.csv("outputs/tr_table_fxonly_b.csv")
 
-
+foldx <- foldx[-c(449, 642, 643),]
+foldx_tr <- foldx_tr[-c(449, 642, 643),]
 
 
 ###   Stepwise model selection ###
@@ -117,8 +118,8 @@ for (i in 1:length(subsets)){
 #   1. Be consistent with best subset method
 #   2. Since there are so many parameters, we want a method with a larger penalty to prevent overfitting
 
-mods <- list(mod_step_f = mod_step_bic_f,
-             mod_step_b = mod_step_bic_b,
+mods <- list(mod_step_f = mod_step_f,
+             mod_step_b = mod_step_b,
              mod_step_fx = mod_step_bic_fx,
              mod_step_bx = mod_step_bic_bx,
              
