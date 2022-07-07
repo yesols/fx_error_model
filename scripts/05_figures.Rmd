@@ -139,3 +139,95 @@ fold %>% mutate(test = loo_fold$test) %>%
   facet_wrap(~systems) +
   scale_color_manual(values = c("red", "blue"))
 ```
+
+
+
+
+
+
+## Predicted stability effects vs actual effects
+
+If we classify stability effects according to ddG, how concordant are they between actual and predicted?
+Cut off at +/- 0.5 kcal/mol as in Khan & Vihinen.
+
+```{r}
+binned <- loo_fold %>% 
+  select(systems, mut, ddg_exp, total, error, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+ggplot(binned, aes(fill = classes_actual, x = classes_pred)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("blue", "darkgray", "red")) +
+  theme_classic()
+```
+
+```{r}
+binned_bind <- loo_bind %>% 
+  select(systems, mut, ddg_exp, total, error, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+ggplot(binned_bind, aes(fill = classes_actual, x = classes_pred)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("blue", "darkgray", "red")) +
+  theme_classic()
+```
+
+Combine fold and bind altogether
+```{r}
+binned_all <- bind_rows(binned, binned_bind)
+# Re-order labels so that figure is more intuitive
+# binned_all$classes_pred <- factor(binned_all$classes_pred,
+#                                   levels = c("destabilizing", "neutral", "stabilizing"))
+binned_all$classes_actual <- factor(binned_all$classes_actual,
+                                  levels = c("destabilizing", "neutral", "stabilizing"))
+
+classification_error <- 
+ggplot(binned_all, aes(fill = classes_actual, x = classes_pred)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("red", "darkgray", "blue"), name = "Actual class") +
+  theme_classic() +
+  labs(x = "Predicted class", y = "Frequency")
+classification_error
+#ggsave("../figures/classification_error.png", width = 7, height = 5)
+```
+
+A variation
+```{r}
+ggplot(binned_all, aes(x = classes_pred, y = ddg_exp)) +
+  geom_jitter()
+```
+
+
+
+
+Scatter plot
+```{r}
+error_correlation <-
+binned_all %>%
+  ggplot(aes(x = ddg_pred, y = ddg_exp)) +
+  geom_point(aes(color = error)) +
+  theme_classic() +
+  scale_color_gradient(low = "blue4", 
+                        high = "red") +
+  geom_point(data = binned_all[binned_all$test == FALSE,], 
+             aes(x = ddg_pred, y = ddg_exp),
+             shape = 4, size = 4) +
+  labs(x = expression(paste(Delta, Delta, "G")[pred]),
+       y = expression(paste(Delta, Delta, "G")[exp]))
+error_correlation
+```
+
+```{r}
+ggarrange(error_correlation, classification_error,
+          labels = c("A","B"),
+          ncol = 2)
+ggsave("../figures/predicted_vs_actual.png", width = 12, height = 5)
+```
+
+
