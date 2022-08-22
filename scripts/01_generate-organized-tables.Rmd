@@ -165,7 +165,8 @@ Put reference values for VDW volumes, pK, hydrophobicity index, and charge in a 
 ```{r}
 # AA and their properties (ref: textbook, Sigma Aldrich reference chart)
 AAs <- c("A","R","N","D","C","Q","E","G","H","I","L","K","M","F","P","S","T","W","Y","V")
-vdw <- c(67,167,148,67,86,114,109,48,118,124,124,135,124,135,90,73,93,163,141,105) # vdw volume in angstrom^3
+#vdw <- c(67,167,148,67,86,114,109,48,118,124,124,135,124,135,90,73,93,163,141,105) # vdw volume in angstrom^3
+vdw <- c(88.6,173.4,114.1,111.1,108.5,143.8,138.4,60.1,153.2,166.7,166.7,168.6,162.9,189.9,112.7,89.0,116.1,227.8,193.6,140.0)
 pK <- c(NA,12.48,NA,3.65,8.18,NA,4.25,NA,6,NA,NA,10.53,NA,NA,NA,NA,NA,NA,NA,NA) # pK of charged groups
 HI <- c(41,-14,-28,-55,49,-10,-31,0,8,99,97,-23,74,100,-46,-5,13,97,63,76) # Pro: at pH2 
 charge <- c(0,1,0,-1,0,0,-1,0,1,0,0,1,0,0,0,0,0,0,0,0) # plain electrical charge

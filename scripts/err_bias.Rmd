@@ -1,0 +1,236 @@
+---
+title: "FoldX Error Bias"
+author: "Yesol Sapozhnikov"
+date: '2022-07-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.width = 11)
+```
+
+
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggpubr)
+
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+# FoldX-only tables:
+foldx <- read.csv("../outputs/table_fxonly_f.csv")
+bindx <- read.csv("../outputs/table_fxonly_b.csv")
+# selected models from stepwise & best subset selection
+mods <- readRDS("../outputs/models.rds")
+# source LOsysOCV function
+source("../scripts/functions.R")
+
+# Run LOOCV to create dataframes
+loo_fold <- loocv(formula(mods$mod_subset_f), fold)$df
+loo_bind <- loocv(formula(mods$mod_subset_b), bind)$df
+
+# Add signed error column
+loo_fold$signed_error <- loo_fold$total - loo_fold$ddg_exp
+loo_bind$signed_error <- loo_bind$total - loo_bind$ddg_exp
+```
+
+
+```{r}
+# combine fold and bind datasets for plotting convenience
+loo_fold$energy <- "fold"
+loo_bind$energy <- "bind"
+loo_all <- bind_rows(loo_fold, loo_bind)
+loo_all$energy <- factor(loo_all$energy, levels = c("fold", "bind"))
+```
+
+
+```{r}
+loo_all %>%
+  ggplot(aes(ddg_exp, total)) +
+  geom_hex(bins = 60) +
+  geom_abline(slope = 1, intercept =0, size = 0.2) +
+  theme_bw() +
+  scale_fill_viridis_c() +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]),
+       y = expression(paste(Delta, Delta, "G")[pred]),
+       title = "Empirical ddG vs predicted ddG, hexplot") +
+  facet_wrap(~energy)
+```
+
+```{r}
+loo_all %>%
+  ggplot(aes(ddg_exp, total)) +
+  geom_point(aes(color = systems)) +
+  geom_abline(slope = 1, intercept =0, size = 0.2) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]),
+       y = expression(paste(Delta, Delta, "G")[pred]),
+       title = "Empirical ddG vs predicted ddG, colored by systems") +
+  facet_wrap(~energy)
+```
+
+```{r}
+ggplot(loo_all, aes(ddg_exp, signed_error, color = systems)) +
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Empirical ddG and signed error by systems") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy)
+```
+
+```{r}
+ggplot(loo_all, aes(total, signed_error, color = systems)) +
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Predicted ddG and signed error by systems") +
+  xlab(expression(paste(Delta, Delta, "G")[pred])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy)
+```
+
+
+```{r}
+loo_all %>%
+  ggplot(aes(ddg_exp, total)) +
+  geom_point(aes(color = test)) +
+  geom_abline(slope = 1, intercept =0, size = 0.2) +
+  theme_bw() +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]),
+       y = expression(paste(Delta, Delta, "G")[pred]),
+       title = "Empirical ddG vs predicted ddG, colored by coverage") +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black")) +
+  facet_wrap(~energy)
+```
+
+
+
+
+```{r}
+ggplot(loo_all, aes(ddg_exp, signed_error, color = test)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Empirical ddG and signed error by coverage") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy) +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black"))
+```
+
+
+
+
+
+
+```{r}
+ggplot(loo_all, aes(total, signed_error, color = test)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Predicted ddG and signed error by coverage") +
+  xlab(expression(paste(Delta, Delta, "G")[pred])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy) +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black"))
+```
+
+```{r}
+ggplot(loo_all, aes(ddg_exp, error, color = test)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Empirical ddG and error (magnitude) by coverage") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy) +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black"))
+```
+
+
+```{r}
+ggplot(loo_fold, aes(ddg_exp, signed_error, color = systems)) +
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Empirical ddG and signed error by systems - Fold") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~systems)
+```
+```{r}
+ggplot(loo_bind, aes(ddg_exp, signed_error, color = systems)) +
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(title = "Empirical ddG and signed error by systems - bind") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~systems)
+```
+
+## Slopes
+
+Isolate 3hfm (has clear slope)
+
+```{r, fig.width=6}
+loo_bind %>% filter(systems == "3hfm") %>%
+  ggplot(aes(ddg_exp, signed_error)) +
+  geom_point() + geom_smooth(method = "lm")
+```
+
+```{r}
+sample_points <- loo_bind %>% filter(systems == "1cbw")
+mod <- lm(signed_error~ddg_exp, data = sample_points)
+mod
+```
+
+
+
+
+```{r, fig.width=6}
+loo_bind %>% filter(systems == "3hfm") %>%
+  ggplot(aes(ddg_exp, total)) +
+  geom_point()
+loo_bind %>% filter(systems == "3hfm") %>%
+  ggplot(aes(total, ddg_exp)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+
+Bind dataset with 1ppf removed (large trail of outliers)
+```{r}
+sample_points <- loo_bind %>% filter(systems != "1ppf")
+lm(signed_error~ddg_exp, data = sample_points)
+lm(total~ddg_exp, data = sample_points)
+```
+```{r, fig.width=6}
+ggplot(sample_points, aes(ddg_exp, total)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+## Fold data
+
+Analyze without 1wq5 which has large overestimation of ddG
+```{r}
+sample_points <- loo_fold %>% filter(systems != "1wq5")
+lm(signed_error~ddg_exp, data = sample_points)
+lm(total~ddg_exp, data = sample_points)
+```
+```{r, fig.width=6}
+ggplot(sample_points, aes(ddg_exp, total)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+```{r, fig.width=6}
+loo_fold %>% filter(systems != "1wq") %>%
+  ggplot(aes(ddg_exp, total)) +
+  geom_point()
+loo_fold %>% filter(systems != "1wq5") %>%
+  ggplot(aes(ddg_exp, signed_error)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```

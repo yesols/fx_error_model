@@ -106,3 +106,24 @@ loocv_t <- function(f, dataset){ #inpu: lm formula, dataframe (e.g. fold or bind
   out$med_upr_bd <- median(df$upr) 
   return(out)
 }  
+
+
+# Bias correction function: scatterplots of ddg_exp and ddg_predicted (FoldX) show a bias. 
+# The slope of the linear fitted line results in systematic bias in error (ddg_pred - ddg_exp) 
+# as well. This function calculates a "corrected" ddg_pred.
+#     Input: x = char string for ddg_exp, 
+#            y = char string for ddg_predicted ("total" in my datasets), 
+#            dataset = dataframe to use
+#     Output: corrected ddg_pred to reduce systemic bias.
+correct_bias <- function(x, y, dataset){
+  mod <- lm(formula(paste(y, "~", x)), data = dataset)
+  intercept <- coefficients(mod)[1]
+  slope <- coefficients(mod)[2]
+  y_prime <- (dataset[,y] - intercept)/slope
+  return(y_prime)
+}
+
+
+
+
+

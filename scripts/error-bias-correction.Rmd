@@ -1,0 +1,283 @@
+---
+title: "Error bias correction"
+author: "Yesol Sapozhnikov"
+date: '2022-07-21'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## What this script does
+
+FoldX-calculated ddG does not correlate with ddG_exp well. The slope of the fitted line of scatterplots can range from 0.2 to 0.6 in subsets of my dataset, and intercept around 0.4. The relationship varies between fold dataset and bind dataset. This causes a systemic bias in signed error in which negative ddG tends to be predicted higher (more destabilizing) and larger ddG tends to be predicted lower (underestimated.)
+
+This script attempts to correct the bias and repeat the error model search process.
+
+
+## Data and model search
+
+```{r, include=FALSE}
+library(tidyverse)
+library(leaps)
+
+source("functions.R")
+
+# Full tables:
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+fold_tr <- read.csv("../outputs/tr_table_full_f.csv")
+bind_tr <- read.csv("../outputs/tr_table_full_b.csv")
+
+# selected models from stepwise & best subset selection
+mods <- readRDS("../outputs/models.rds")
+
+# Separate dataframes for correction
+fold2 <- fold
+bind2 <- bind
+```
+
+
+Obtain corrected ddG_pred 
+```{r}
+fold2$total <- correct_bias("ddg_exp", "total", fold2)
+bind2$total <- correct_bias("ddg_exp", "total", bind2)
+
+```
+
+
+Modify datasets with corrected "error" column
+```{r}
+fold2$error <- abs(fold2$total - fold2$ddg_exp)
+bind2$error <- abs(bind2$total - bind2$ddg_exp)
+
+fold_tr$error <- fold2$error
+bind_tr$error <- bind2$error
+```
+
+Check correction:
+```{r}
+par(mfrow = c(2,2))
+plot(fold$ddg_exp, fold$total, pch = 20, main = "ddG_exp vs ddG_pred, Fold")
+abline(0,1, col = "blue")
+plot(fold2$ddg_exp, fold2$total, pch = 20, main = "ddG_exp vs ddG_pred_corrected, Fold")
+abline(0,1, col = "blue")
+plot(bind$ddg_exp, bind$total, pch = 20, main = "ddG_exp vs ddG_pred, Bind")
+abline(0,1, col = "blue")
+plot(bind2$ddg_exp, bind2$total, pch = 20, main = "ddG_exp vs ddG_pred_corrected, Bind")
+abline(0,1, col = "blue")
+```
+
+Model search (exhaustive)
+```{r}
+mod_corr_f <- run_subset(fold_tr)
+mod_corr_b <- run_subset(bind_tr)
+```
+
+Cross-validation
+```{r, include = FALSE}
+loo_fold <- loocv(formula(mods$mod_subset_f), fold)
+loo_bind <- loocv(formula(mods$mod_subset_b), bind)
+
+loo_fold2 <- loocv(formula(mod_corr_f), fold2)
+loo_bind2 <- loocv(formula(mod_corr_b), bind2)
+
+# Table of values for comparison
+data.frame(correction = c("not corrected", "corrected"),
+           fold_coverage = c(loo_fold$coverage, loo_fold2$coverage),
+           fold_median_width = c(loo_fold$med_upr_bd, loo_fold2$med_upr_bd),
+           bind_coverage = c(loo_bind$coverage, loo_bind2$coverage),
+           bind_median_width = c(loo_bind$med_upr_bd, loo_bind2$med_upr_bd))
+
+```
+
+With RMSE
+```{r}
+rmse1_fold <- sqrt(mean((loo_fold$df$total-loo_fold$df$ddg_exp)^2))
+rmse2_fold <- sqrt(mean((loo_fold2$df$total-loo_fold2$df$ddg_exp)^2))
+rmse1_bind <- sqrt(mean((loo_bind$df$total-loo_bind$df$ddg_exp)^2))
+rmse2_bind <- sqrt(mean((loo_bind2$df$total-loo_bind2$df$ddg_exp)^2))
+
+data.frame(correction = c("not corrected", "corrected"),
+           fold_coverage = c(loo_fold$coverage, loo_fold2$coverage),
+           fold_median_width = c(loo_fold$med_upr_bd, loo_fold2$med_upr_bd),
+           fold_rmse = c(rmse1_fold, rmse2_fold),
+           bind_coverage = c(loo_bind$coverage, loo_bind2$coverage),
+           bind_median_width = c(loo_bind$med_upr_bd, loo_bind2$med_upr_bd),
+           bind_rmse = c(rmse1_bind, rmse2_bind))
+```
+
+
+
+```{r}
+loo_fold2$formula
+loo_bind2$formula
+```
+
+
+
+Plot signed error and compare with before the correction
+```{r}
+loo_fold$df$signed_error <- loo_fold$df$total-loo_fold$df$ddg_exp
+loo_bind$df$signed_error <- loo_bind$df$total-loo_bind$df$ddg_exp
+loo_fold2$df$signed_error <- loo_fold2$df$total-loo_fold2$df$ddg_exp
+loo_bind2$df$signed_error <- loo_bind2$df$total-loo_bind2$df$ddg_exp
+
+# combine fold and bind datasets for plotting convenience
+loo_fold$df$energy <- "fold"
+loo_bind$df$energy <- "bind"
+loo_all <- bind_rows(loo_fold$df, loo_bind$df)
+loo_all$energy <- factor(loo_all$energy, levels = c("fold", "bind"))
+
+loo_fold2$df$energy <- "fold"
+loo_bind2$df$energy <- "bind"
+loo_all2 <- bind_rows(loo_fold2$df, loo_bind2$df)
+loo_all2$energy <- factor(loo_all2$energy, levels = c("fold", "bind"))
+
+signed_err_compare1 <- ggplot(loo_all, aes(ddg_exp, signed_error, color = test)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Empirical ddG and signed error by coverage") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy) +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black"))
+signed_err_compare2 <- ggplot(loo_all2, aes(ddg_exp, signed_error, color = test)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = "Empirical ddG and signed error (after correction) by coverage") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred_corr] - paste(Delta, Delta, "G")[exp])) +
+  facet_wrap(~energy) +
+  scale_color_discrete(name = "Coverage", labels = c("miss", "covered"), type = c("red", "black"))
+```
+
+
+```{r}
+signed_err_comparison <- gridExtra::grid.arrange(signed_err_compare1, signed_err_compare2, ncol = 1)
+ggsave(signed_err_comparison, file = "../figures/signed_err_compare_correction.png", width = 7, height = 7)
+gridExtra::grid.arrange(signed_err_compare1, signed_err_compare2, ncol = 1)
+```
+
+Plot ddG_exp and ddg_pred (with/without correction) with upr bd - does width vary in certain regions?
+Also how does correction spread the deviations from 1:1 line?
+
+Combine original and corrected dataframes for better visual comparison
+```{r}
+loo_all$correction <- "original"
+loo_all2$correction <- "corrected"
+loo_all12 <- bind_rows(loo_all, loo_all2)
+loo_all12$correction <- factor(loo_all12$correction, levels = c("original", "corrected"))
+ggplot(loo_all12, aes(ddg_exp, total, color = upr)) +
+  geom_point() + geom_abline(slope = 1, intercept = 0, color = "blue") +
+  scale_color_viridis_c(limits = c(0, 10)) + 
+  theme_bw() +
+  labs(title = "Empirical ddG vs predicted ddG \nComparison of uncorrected and corrected ddG_pred") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred])) +
+  facet_grid(rows = vars(energy), cols = vars(correction))
+#ggsave("../figures/empricial_ddg_vs_pred_ddg_correction_comparison.png", width = 7, height = 7)
+```
+
+Histogram of deviations from 1:1 line
+```{r}
+ggplot(loo_all12, aes(x = error)) +
+  geom_histogram(bins = 50) + 
+  coord_cartesian(xlim = c(0, 7)) +
+  theme_bw() +
+  facet_grid(rows = vars(energy), cols = vars(correction)) +
+  xlab("magnitude of error (deviations from 1:1 line")
+ggsave("../figures/histogram_error_correction_comparison.png", width = 7, height = 5)
+```
+
+
+
+
+
+
+
+Try correction after excluding abberant systems
+```{r}
+# Another set of dataframes to test exclusion of outlier systems
+fold3 <- fold[fold$systems != "1vqb",]
+bind3 <- bind[bind$systems != "1ppf",]
+
+fold3$total <- correct_bias("ddg_exp", "total", fold3)
+bind3$total <- correct_bias("ddg_exp", "total", bind3)
+
+fold3$error <- abs(fold3$total - fold3$ddg_exp)
+bind3$error <- abs(bind3$total - bind3$ddg_exp)
+
+fold3_tr <- fold3 %>% select(-c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
+bind3_tr <- bind3 %>% select(-c("ddg_exp","systems","mut","AAfrom","AAto","chain","residue","ch_res","ACC"))
+
+fold3_tr$error <- fold3$error
+bind3_tr$error <- bind3$error
+
+mod_corr_f3 <- run_subset(fold3_tr)
+mod_corr_b3 <- run_subset(bind3_tr)
+
+loo_fold3 <- loocv(formula(mod_corr_f3), fold3)
+loo_bind3 <- loocv(formula(mod_corr_b3), bind3)
+
+rmse3_fold <- sqrt(mean((loo_fold3$df$total-loo_fold3$df$ddg_exp)^2))
+rmse3_bind <- sqrt(mean((loo_bind3$df$total-loo_bind3$df$ddg_exp)^2))
+
+data.frame(correction = c("not corrected", "corrected", "excl-corrected"),
+           fold_coverage = c(loo_fold$coverage, loo_fold2$coverage, loo_fold3$coverage),
+           fold_median_width = c(loo_fold$med_upr_bd, loo_fold2$med_upr_bd, loo_fold3$med_upr_bd),
+           fold_rmse = c(rmse1_fold, rmse2_fold, rmse3_fold),
+           bind_coverage = c(loo_bind$coverage, loo_bind2$coverage, loo_bind3$coverage),
+           bind_median_width = c(loo_bind$med_upr_bd, loo_bind2$med_upr_bd, loo_bind3$med_upr_bd),
+           bind_rmse = c(rmse1_bind, rmse2_bind, rmse3_bind))
+```
+
+
+
+
+Transformation matrix:
+Try rotation and vertical shear
+
+```{r}
+theta <- -pi/4 #angle of rotation
+A_rot <- matrix(c(cos(theta), -sin(theta), sin(theta), cos(theta)), 2,2)
+s <- 0.5 #scale
+A_shear <- matrix(c(1,s,0,1), 2,2)
+ori_coor <- matrix(c(fold$ddg_exp, fold$total), byrow = TRUE, nrow = 2)
+transformed_coor_rot <- A_rot %*% ori_coor
+transformed_coor_shear <- A_shear %*% ori_coor
+```
+
+Get separate dataframes
+```{r}
+fold4 <- fold
+fold5 <- fold
+fold4$total <- transformed_coor_rot[2,]
+fold5$total <- transformed_coor_shear[2,]
+```
+
+Plot
+```{r}
+test_fold1 <- fold %>% select(systems, ddg_exp, total) %>% mutate(transf = "original")
+test_fold4 <- fold4 %>% select(systems, ddg_exp, total) %>% mutate(transf = "rotation")
+test_fold5 <- fold5 %>% select(systems, ddg_exp, total) %>% mutate(transf = "shear")
+test_fold <- bind_rows(test_fold1, test_fold4, test_fold5)
+ggplot(test_fold, aes(ddg_exp, total)) +
+  geom_point() + geom_abline(slope = 1, intercept = 0, color = "blue") +
+  theme_bw() +
+  labs(title = "Empirical ddG vs predicted ddG \nComparison of transformed ddG_pred") +
+  xlab(expression(paste(Delta, Delta, "G")[exp])) + 
+  ylab(expression(paste(Delta, Delta, "G")[pred])) +
+  facet_wrap(~transf)
+```
+
+
+
+
+
+
+
+
+
+
