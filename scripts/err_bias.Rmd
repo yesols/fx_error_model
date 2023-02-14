@@ -9,6 +9,10 @@ output: html_document
 knitr::opts_chunk$set(echo = FALSE, fig.width = 11)
 ```
 
+Various visualization of ddG error bias.
+For the bias correction attempts, see `boxcox_transform.Rmd` and `error-bias-correction.Rmd`.
+
+
 
 
 ```{r, include=FALSE}

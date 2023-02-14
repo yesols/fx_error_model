@@ -67,8 +67,8 @@ errors_all_fold <- loo_fold %>% arrange(upr) %>%
                      ))) +  
   theme_light() +
   scale_x_continuous(NULL, breaks = NULL) +
-  labs(title = "Errors with prediction interval", subtitle = "Fold data",
-       y = "error (kcal/mol)") +
+  labs(y = "error (kcal/mol)") +
+  annotate("text", x = 100, y = 12.5, label = "Fold data", size = 8) +
   theme(legend.position = c(0.7,0.8), legend.title = element_blank())
 errors_all_bind <- loo_bind %>% arrange(upr) %>%
   ggplot(aes(x = seq_along(error), y = error)) +
@@ -82,8 +82,8 @@ errors_all_bind <- loo_bind %>% arrange(upr) %>%
                      ))) +  
   theme_light() +
   scale_x_continuous(NULL, breaks = NULL) +
-  labs(title = "Errors with prediction interval", subtitle = "bind data",
-       y = "error (kcal/mol)") +
+  labs(y = "error (kcal/mol)") +
+  annotate("text", x = 90, y = 15.7, label = "Bind data", size = 8) +
   theme(legend.position = c(0.7,0.8), legend.title = element_blank())
 ```
 
@@ -91,23 +91,24 @@ Breakdown by system
 ```{r}
 errors_sys_fold <- loo_fold %>% arrange(upr) %>%
   ggplot(aes(y=error,x=seq_along(error))) +
-  geom_point(aes(color=test), show.legend = FALSE) +
+  geom_point(aes(color=test), size = .8, show.legend = FALSE) +
   geom_line(aes(x=seq_along(error), y=upr), color="blue") +
   scale_color_manual(values = c("#FF0000", "#000000")) +
   facet_wrap(~systems, nrow = 2) +
-  theme_bw() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme_bw() + labs(y = "error (kcal/mol)") +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.background = element_rect(fill = "white"))
 errors_sys_bind <- loo_bind %>% arrange(upr) %>% 
   ggplot(aes(y=error,x=seq_along(error))) +
-  geom_point(aes(color=test), show.legend = FALSE) +
+  geom_point(aes(color=test), size = .8, show.legend = FALSE) +
   geom_line(aes(x=seq_along(error), y=upr), color="blue") +
   scale_color_manual(values = c("#FF0000", "#000000")) +
-  theme_bw() +
+  theme_bw() + labs(y = "error (kcal/mol)") +
   facet_wrap(~systems, nrow = 2) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.ticks.x = element_blank(),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        strip.background = element_rect(fill = "white"))
 ```
 
 Arragne plots
@@ -213,10 +214,10 @@ binned_all %>%
   ggplot(aes(x = ddg_pred, y = ddg_exp)) +
   geom_point(aes(color = error)) +
   theme_classic() +
-  scale_color_gradient(low = "blue4", 
+  scale_color_gradient(low = "blue", 
                         high = "red") +
   geom_point(data = binned_all[binned_all$test == FALSE,], 
-             aes(x = ddg_pred, y = ddg_exp),
+             aes(x = ddg_pred, y = ddg_exp, color = error),
              shape = 4, size = 4) +
   labs(x = expression(paste(Delta, Delta, "G")[pred]),
        y = expression(paste(Delta, Delta, "G")[exp]))
@@ -229,5 +230,56 @@ ggarrange(error_correlation, classification_error,
           ncol = 2)
 ggsave("../figures/predicted_vs_actual.png", width = 12, height = 5)
 ```
+```{r}
+error_correlation <- 
+binned_all %>%
+  ggplot(aes(x = ddg_exp, y = ddg_pred)) +
+  geom_point(aes(color = error)) +
+  theme_bw() +
+  scale_color_gradient(low = "chartreuse", 
+                        high = "red4") +
+  geom_point(data = binned_all[binned_all$test == FALSE,], 
+             aes(x = ddg_exp, y = ddg_pred, color = error),
+             shape = 4, size = 4) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)),
+       y = expression(paste(Delta, Delta, "G")[pred]~(kcal/mol))) +
+  theme(legend.position = c(.85, .75))
+```
+
+Try histogram?
+
+```{r}
+classification <- 
+binned_all %>% ggplot(aes(x = ddg_exp)) +
+  geom_histogram(binwidth = 0.2, position = "dodge",
+                 aes(fill = classes_pred)) +
+  geom_vline(xintercept = c(-.5, .5), linetype = 2, size = .2) +
+  scale_fill_manual(values = c("blue", "gray40", "red"), name = "Predicted class") +
+  theme_bw() +
+  theme(legend.position = c(.8, .6)) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)),
+       y = "Number of mutations")
+```
+
+Density plot?
+```{r}
+classification_density <- 
+ggplot(aes(x = ddg_exp, fill = classes_pred), data = binned_all) +
+  geom_density(alpha = .5) +
+  geom_vline(xintercept = c(-.5, .5), linetype = 2, size = .2) +
+  scale_fill_manual(values = c("blue", "gray40", "red"), name = "Predicted class") +
+  theme_bw() +
+  theme(legend.position = c(.8, .6)) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)))
+```
+
+
+```{r}
+ggarrange(error_correlation, classification_density,
+          labels = c("A","B"),
+          ncol = 2)
+ggsave("../figures/predicted_vs_actual3.png", width = 12, height = 5)
+```
+
 
 
