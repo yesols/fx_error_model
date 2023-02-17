@@ -13,7 +13,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Apply the same steps to determine models for different combination of datasets (FoldX, or MD + FoldX) and sets of parameters (FoldX energy terms, biochemical/physical properties, MD-associated SD).
 
+Naming convention in manuscript:
 
+- Model 1: FoldX-only dataset with FoldX energy terms
+- Model 2: FoldX-only dataset with FoldX energy terms + biochem properties
+- Model 3: MD + FoldX dataset with FoldX energy terms
+- Model 4: MD + FoldX dataset with FoldX energy terms + biochem properties
+- Model 5: MD + FoldX dataset with FoldX energy terms + biochem properties + sd 
+
+Model 1 and 5 were done in previous script. This one will train models 2-4.
 
 ## Read in data, load packages
 

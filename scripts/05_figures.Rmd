@@ -133,16 +133,6 @@ ggplot(loo_bind, aes(x = ddg_exp, y = error)) +
   labs(x = "ddG", y = "error")
 ```
 
-```{r}
-fold %>% mutate(test = loo_fold$test) %>%
-  ggplot(aes(x = energy_vdwclash, y = error, color = test)) +
-  geom_point() +
-  facet_wrap(~systems) +
-  scale_color_manual(values = c("red", "blue"))
-```
-
-
-
 
 
 
@@ -197,14 +187,6 @@ ggplot(binned_all, aes(fill = classes_actual, x = classes_pred)) +
 classification_error
 #ggsave("../figures/classification_error.png", width = 7, height = 5)
 ```
-
-A variation
-```{r}
-ggplot(binned_all, aes(x = classes_pred, y = ddg_exp)) +
-  geom_jitter()
-```
-
-
 
 
 Scatter plot
@@ -281,5 +263,14 @@ ggarrange(error_correlation, classification_density,
 ggsave("../figures/predicted_vs_actual3.png", width = 12, height = 5)
 ```
 
-
+Does it look cleaner if I remove the borders?
+```{r}
+ggplot(aes(x = ddg_exp, fill = classes_pred), data = binned_all) +
+  geom_density(alpha = .5, color = NA) +
+  geom_vline(xintercept = c(-.5, .5), linetype = 2, size = .2) +
+  scale_fill_manual(values = c("blue", "gray40", "red"), name = "Predicted class") +
+  theme_bw() +
+  theme(legend.position = c(.8, .6)) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)))
+```
 
