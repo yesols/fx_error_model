@@ -15,6 +15,8 @@ Load libraries and build data frames for plots.
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(ggpattern)
+#library(ggExtra)
 
 # Full tables:
 fold <- read.csv("../outputs/table_full_f.csv")
@@ -243,6 +245,9 @@ binned_all %>% ggplot(aes(x = ddg_exp)) +
        y = "Number of mutations")
 ```
 
+
+
+
 Density plot?
 ```{r}
 classification_density <- 
@@ -263,14 +268,403 @@ ggarrange(error_correlation, classification_density,
 ggsave("../figures/predicted_vs_actual3.png", width = 12, height = 5)
 ```
 
-Does it look cleaner if I remove the borders?
+
+More ideas about conveying the errors/misclassification.
+
 ```{r}
-ggplot(aes(x = ddg_exp, fill = classes_pred), data = binned_all) +
-  geom_density(alpha = .5, color = NA) +
-  geom_vline(xintercept = c(-.5, .5), linetype = 2, size = .2) +
-  scale_fill_manual(values = c("blue", "gray40", "red"), name = "Predicted class") +
-  theme_bw() +
-  theme(legend.position = c(.8, .6)) +
-  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)))
+binned <- loo_fold %>% 
+  select(systems, mut, ddg_exp, total, error, upr, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+binned_bind <- loo_bind %>% 
+  select(systems, mut, ddg_exp, total, error, upr, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+binned_all <- bind_rows(binned, binned_bind)
+# Re-order labels so that figure is more intuitive
+# binned_all$classes_pred <- factor(binned_all$classes_pred,
+#                                   levels = c("destabilizing", "neutral", "stabilizing"))
+binned_all$classes_actual <- factor(binned_all$classes_actual,
+                                  levels = c("destabilizing", "neutral", "stabilizing"))
 ```
+
+```{r}
+binned_all$ddg_pred_cat <- cut(binned_all$ddg_pred, breaks = c(-Inf, -1.5, -.5, .5, 1.5, 2.5, 4, 5.5, 10, Inf))
+binned_all$bincode <- NA # to be filled with below loop
+binned_all$class_match <- NA
+
+for (i in 1: nrow(binned_all)){
+  ddg <- binned_all$ddg_pred[i]
+  L <- ddg - binned_all$upr[i]
+  U <- ddg + binned_all$upr[i]
+  if (L < -0.5 & U > 0.5){
+    bincode <- "111"
+  } else if (L > -0.5 & U < 0.5){
+    bincode <- "010"
+  } else if (U < -0.5){
+    bincode <- "100"
+  } else if (L > 0.5){
+    bincode <- "001"
+  } else if (U < 0.5){
+    bincode <- "110"
+  } else if (L > -0.5){
+    bincode <- "011"
+  }
+  binned_all$bincode[i] <- bincode
+  
+  if (binned_all$classes_pred[i] == binned_all$classes_actual[i]){
+    binned_all$class_match[i] <- "match"
+  } else (binned_all$class_match[i] <- "mismatch")
+}
+```
+
+
+
+```{r}
+class1 <- 
+binned_all %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram_pattern(position = "fill", color = "black",
+                 #breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16),
+                 breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 8, 10, 12, 16),
+                 pattern_color = "black", pattern_density = 0.01, pattern_spacing = 0.02,
+                 aes(fill = classes_actual, pattern = class_match)) +
+  scale_pattern_manual(values = c("none", "stripe"), ) +
+  scale_fill_manual(values = c("rosybrown1", "white", "lightsteelblue2"),
+                    name = "Actual class",
+                    labels = c("destabilizing", "neutral", "stabilizing")) +
+  theme_classic() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.8, .6),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none")
+class1
+```
+```{r}
+class2 <- 
+binned_all %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram(position = "fill", color = "black",
+                 #breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16),
+                 breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 8, 10, 12, 16),
+                 aes(fill = bincode)) +
+  scale_fill_manual(values = c("red4", "rosybrown2", "lightsteelblue2", "white"),
+                    name = "Possible class", 
+                    labels = c("destabilizing", "destabilizing or neutral", "stabilizing or neutral", "any")) +
+  theme_classic() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.75, .3), 
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion")
+class2
+```
+
+```{r}
+ggarrange(class1, class2,
+          labels = c("A","B"),
+          ncol = 2)
+ggsave("../figures/classifications.png", width = 11, height = 5)
+```
+```{r}
+binned_all %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram_pattern(position = "stack", color = "black", alpha = 0.2,
+                 #breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16),
+                 breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 5),
+                 pattern_color = "black", pattern_density = 0.01, pattern_spacing = 0.02,
+                 aes(fill = classes_actual, pattern = class_match)) +
+  scale_pattern_manual(values = c("none", "stripe"), ) +
+  scale_fill_manual(values = c("red", "gray", "blue"),
+                    name = "Actual class",
+                    labels = c("destabilizing", "neutral", "stabilizing")) +
+  theme_classic() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.8, .6),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none")
+```
+
+```{r}
+binned_all %>% ggplot(aes(x = ddg_exp)) +
+  geom_histogram(position = "fill", color = "black",
+                 #breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16),
+                 breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 8, 10, 12),
+                 aes(fill = classes_pred)) +
+  # scale_fill_manual(values = c("rosybrown1", "white", "lightsteelblue2"),
+  #                   name = "Actual class",
+  #                   labels = c("destabilizing", "neutral", "stabilizing")) +
+  theme_classic() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.8, .6),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none") + ggtitle("Predicted classes plotted along actual ddG")
+```
+
+## Resampling/simulation
+
+```{r}
+binned_fold <- loo_fold %>% 
+  select(systems, mut, ddg_exp, total, error, upr, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+binned_fold$ddg_pred_cat <- cut(binned_fold$ddg_pred, breaks = c(-Inf, -1.5, -.5, .5, 1.5, 2.5, 4, 5.5, 10, Inf))
+binned_fold$bincode <- NA # to be filled with below loop
+binned_fold$class_match <- NA
+binned_fold$dataset <- "fold"
+
+binned_bind <- loo_bind %>% 
+  select(systems, mut, ddg_exp, total, error, upr, test) %>%
+  rename(ddg_pred = total) %>%
+  mutate(classes_pred = cut(ddg_pred, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")),
+         classes_actual = cut(ddg_exp, c(-Inf, -.5, .5, Inf),
+                           labels = c("stabilizing", "neutral", "destabilizing")))
+binned_bind$ddg_pred_cat <- cut(binned_bind$ddg_pred, breaks = c(-1.5, -.5, .5, 1.5, 2.5, 4, 5.5, 10, Inf))
+
+binned_bind$bincode <- NA # to be filled with below loop
+binned_bind$class_match <- NA
+binned_bind$dataset <- "bind"
+```
+
+3-digit bincode into a function
+```{r}
+create_bincode <- function(ddg, upr){
+  L <- ddg - upr
+  U <- ddg + upr
+  if (L < -0.5 & U > 0.5){
+      bincode <- "111" #any
+    } else if (L > -0.5 & U < 0.5){
+      bincode <- "010" #neutral
+    } else if (U < -0.5){
+      bincode <- "100" #stabilizing
+    } else if (L > 0.5){
+      bincode <- "001" #destabilizing
+    } else if (U < 0.5){
+      bincode <- "110" #neutral or stabilizing
+    } else if (L > -0.5){
+      bincode <- "011" #neutral or destabilizing
+    }
+  return(bincode)
+}
+
+for (i in 1:nrow(binned_fold)){ 
+  binned_fold$bincode[i] <- create_bincode(binned_fold$ddg_pred[i], binned_fold$upr[i])
+  if (binned_fold$classes_pred[i] == binned_fold$classes_actual[i]){
+    binned_fold$class_match[i] <- "match"
+  } else (binned_fold$class_match[i] <- "mismatch")
+}
+
+for (i in 1:nrow(binned_bind)){
+  binned_bind$bincode[i] <- create_bincode(binned_bind$ddg_pred[i], binned_bind$upr[i])
+  if (binned_bind$classes_pred[i] == binned_bind$classes_actual[i]){
+    binned_bind$class_match[i] <- "match"
+  } else (binned_bind$class_match[i] <- "mismatch")
+}
+
+binned_all <- bind_rows(binned_fold, binned_bind)
+
+# Create bins on ddg_exp
+binned_all$ddg_exp_cat <- cut(binned_all$ddg_exp, breaks = c(-Inf, -1.5, -.5, .5, 1.5, 2.5, 4, 5.5, Inf))
+# redo binning the ddg_pred
+binned_all$ddg_pred_cat <- cut(binned_all$ddg_pred, breaks = c(-Inf, -1.5, -.5, .5, 1.5, 2.5, 4, 5.5, Inf))
+```
+
+
+Histogram to show actual ddG distribution of our dataset:
+```{r}
+actual_hist <-
+binned_all %>% ggplot(aes(x = ddg_exp)) +
+  geom_histogram(aes(fill = classes_actual), color = "black",
+                 breaks = c(-3,-1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, 8, 16)) +
+  scale_fill_manual(values = c("lightsteelblue2", "white", "rosybrown2"),
+                    name = "Actual class",
+                    labels = c("stabilizing", "neutral", "destabilizing")) +
+  theme_classic() +
+  theme(legend.position = c(.45, .5),
+        legend.box.background = element_rect(),
+        axis.title = element_text(size = 16), axis.text = element_text(size = 12),
+        strip.text = element_text(size = 16)) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol))) +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+actual_hist
+```
+
+
+
+Probably should re-do binned figures separately for fold and bind, to compare with simulation (which should be separate since the nature of intervals are different)
+
+```{r}
+class1 <- 
+binned_all %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram_pattern(position = "fill", color = "black",
+                 breaks = c(-3,-1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, 8, 16),
+                 #breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 8, 10, 12, 16),
+                 pattern_color = "black", pattern_density = 0.01, pattern_spacing = 0.02,
+                 aes(fill = classes_actual, pattern = class_match)) +
+  scale_pattern_manual(values = c("none", "stripe"), ) +
+  scale_fill_manual(values = c("lightsteelblue2", "white", "rosybrown2"),
+                    name = "Actual class",
+                    labels = c("stabilizing", "neutral", "destabilizing")) +
+  theme_classic() +
+  theme(axis.title = element_text(size = 16), axis.text = element_text(size = 12),
+        strip.text = element_text(size = 16),
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.45, .3),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none") +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+class1
+```
+```{r}
+class2 <- 
+binned_all %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram(position = "fill", color = "black",
+                 #breaks = c(-3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16),
+                 #breaks = c(-2.5, -1.5, -0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 8, 10, 12, 16),
+                 breaks = c(-3,-1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, 8, 16),
+                 aes(fill = bincode)) +
+  scale_fill_manual(values = c("red4", "rosybrown2", "lightsteelblue2", "white"),
+                    name = "Possible class",
+                    labels = c("destabilizing", "destabilizing or neutral", "stabilizing or neutral", "any")) +
+  theme_classic() +
+  theme(axis.title = element_text(size = 16), axis.text = element_text(size = 12),
+        strip.text = element_text(size = 16),
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.47, .5), 
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+class2
+```
+```{r}
+ggarrange(actual_hist, class1, class2,
+          labels = c("A","B","C"),
+          ncol = 1)
+ggsave("../figures/classifications_separated.png", width = 9, height = 11)
+```
+
+
+
+Relationship between error and upper bound, as ddg_pred increases:
+```{r}
+binned_all %>% ggplot(aes(x = ddg_pred, y = upr)) + geom_point(aes(color = systems)) +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+```
+
+
+Resampling
+
+
+```{r}
+bins <- sort(unique(binned_all$ddg_exp_cat))
+N <- 1000 #resample size per bin
+resampled <- NULL # initialize resampled df
+for (i in 1:length(bins)){
+  df_ori <- binned_all %>% filter(ddg_exp_cat == bins[i])
+  n_rows <- nrow(df_ori)
+  sample_rows <- sample(n_rows, N, replace = TRUE)
+  df_resampled <- df_ori[sample_rows,]
+  resampled <- bind_rows(resampled, df_resampled)
+}
+N_min <- min(resampled$ddg_exp) ; N_max <- max(resampled$ddg_exp)
+```
+
+```{r}
+resampled %>% ggplot(aes(x = ddg_exp)) +
+  geom_histogram_pattern(position = "fill", color = "black",
+                 breaks = c(N_min, -1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, N_max),
+                 pattern_color = "black", pattern_density = 0.01, pattern_spacing = 0.02,
+                 aes(fill = classes_pred, pattern = class_match)) +
+  scale_pattern_manual(values = c("none", "stripe"), ) +
+  scale_fill_manual(values = c("lightsteelblue2", "white", "rosybrown2"),
+                    name = "Predicted class",
+                    labels = c("stabilizing", "neutral", "destabilizing")) +
+  theme_classic() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.85, .3),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[exp]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none") +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+
+class1_resampled <- 
+resampled %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram_pattern(position = "fill", color = "black",
+                 breaks = c(-3, -1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, 8, 16),
+                 pattern_color = "black", pattern_density = 0.01, pattern_spacing = 0.02,
+                 aes(fill = classes_actual, pattern = class_match)) +
+  scale_pattern_manual(values = c("none", "stripe"), ) +
+  scale_fill_manual(values = c("lightsteelblue2", "white", "rosybrown2"),
+                    name = "Actual class",
+                    labels = c("stabilizing", "neutral", "destabilizing")) +
+  theme_classic() +
+  theme(axis.title = element_text(size = 16), axis.text = element_text(size = 12),
+        strip.text = element_text(size = 16),
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.85, .3),
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  guides(pattern = "none") +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+class1_resampled
+```
+```{r}
+class2_resampled <- 
+resampled %>% ggplot(aes(x = ddg_pred)) +
+  geom_histogram(position = "fill", color = "black",
+                 breaks = c(-3,-1.5, -0.5, 0.5, 1.5, 2.5, 4, 5.5, 8, 16),
+                 aes(fill = bincode)) +
+  scale_fill_manual(values = c("red4", "rosybrown2", "lightsteelblue2", "white"),
+                    name = "Possible class",
+                    labels = c("destabilizing", "destabilizing or neutral", "stabilizing or neutral", "any")) +
+  # scale_fill_manual(values = c("red4", "rosybrown2", "white"),
+  #                   name = "Possible class",
+  #                   labels = c("destabilizing", "destabilizing or neutral", "any")) +
+  theme_classic() +
+  theme(axis.title = element_text(size = 16), axis.text = element_text(size = 12),
+        strip.text = element_text(size = 16),
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        legend.position = c(.85, .3), 
+        legend.box.background = element_rect()) +
+  labs(x = expression(paste(Delta, Delta, "G")[FoldX]~(kcal/mol)),
+       y = "proportion") +
+  facet_grid(~factor(dataset, levels = c("fold", "bind")))
+class2_resampled
+```
+
+```{r}
+ggarrange(class1_resampled, class2_resampled,
+          labels = c("A","B"),
+          ncol = 1)
+ggsave("../figures/classifications_resampled.png", width = 9, height = 7.5)
+```
+
+```{r}
+table(binned_all$ddg_exp_cat, binned_all$ddg_pred_cat)
+```
+
+```{r}
+table(resampled$ddg_exp_cat, resampled$ddg_pred_cat)
+```
+
+
+
 
