@@ -1,0 +1,19 @@
+---
+title: "simulations"
+author: "Yesol Sapozhnikov"
+date: "2023-03-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data
+
+```{r}
+fold <- read.csv("../outputs/table_full_f.csv")
+bind <- read.csv("../outputs/table_full_b.csv")
+best_mods <- readRDS("../outputs/best_mods_all.rds")
+```
+
