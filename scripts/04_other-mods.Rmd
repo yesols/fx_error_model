@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Purpose of this script
+## Description
 
 Apply the same steps to determine models for different combination of datasets (FoldX, or MD + FoldX) and sets of parameters (FoldX energy terms, biochemical/physical properties, MD-associated SD).
 
@@ -21,14 +21,13 @@ Naming convention in manuscript:
 - Model 4: MD + FoldX dataset with FoldX energy terms + biochem properties
 - Model 5: MD + FoldX dataset with FoldX energy terms + biochem properties + sd 
 
-Model 1 and 5 were done in previous script. This one will train models 2-4.
+Model 1 and 5 were done in the previous script. This one will train models 2-4.
 
 ## Read in data, load packages
 
 ```{r}
 library(tidyverse)
 library(leaps)
-
 source("functions.R")
 ```
 
@@ -50,9 +49,6 @@ There were 3 rows in folding dataset that had no match for dssp data and removed
 ```{r}
 foldx <- foldx[-c(449, 642, 643),]
 foldx_tr <- foldx_tr[-c(449, 642, 643),]
-
-# Make sure everything else matches
-sum(fold$mut == foldx$mut)
 ```
 
 
@@ -180,7 +176,8 @@ mod2_subset_b
 
 Save all best models.
 ```{r}
-mods <- readRDS("../outputs/models.rds")
+mods <- readRDS("../outputs/models.rds") # because models 1 and 5 were saved here
+
 best_mods_all <- list(
   mod1_fold = mods$mod_subset_fx, 
   mod2_fold = mod2_subset_f, 

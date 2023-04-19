@@ -5,9 +5,8 @@ date: "3/4/2022"
 output: html_document
 ---
 
-## Purpose of this script
 
-This script performs ad-hoc LOOCV to further select best-performing models from the results of 02_model-selection.R script. We use a modified leave-one-out nethod in which all data points from a system is left out instead of each data point. 
+This script performs LOOCV to further select best-performing models from the results of 02_model-selection.R script. We use a modified leave-one-out nethod in which all data points from a system is left out instead of each data point. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -65,15 +64,6 @@ print(paste("best subset terms:", as.character(formula(mods$mod_subset_f))[3]))
 sum_table %>% filter(datasets == "full", energy == "folding") %>% 
   select(methods, adj_r2, coverage, med_upr_bd)
 ```
-
-```{r}
-f <- formula("error ~ energy_vdw + energy_vdwclash + entropy_sidec + total_sd + P + str")
-# removing any parameter makes it significantly worse
-lm_sum <- summary(lm(f, fold))
-loo_result <- loocv(f, fold)
-print(c(lm_sum$adj.r.squared, loo_result$coverage, loo_result$med_upr_bd))
-```
-
 
 
 Binding energy dataset (full): Best subset

@@ -33,7 +33,6 @@ bindx <- read.csv("../outputs/table_fxonly_b.csv")
 foldx <- foldx[-c(449, 642, 643),]
 
 # selected models from stepwise & best subset selection
-mods <- readRDS("../outputs/models.rds")
 best_mods <- readRDS("../outputs/best_mods_all.rds")
 
 # source LOsysOCV function
@@ -139,3 +138,24 @@ summary(best_mods$mod2_bind)
 ```{r}
 summary(best_mods$mod1_bind)
 ```
+
+# Compare BIC
+
+```{r}
+bics <- sapply(best_mods, BIC)
+bic_df <- data.frame(model = str_sub(names(bics), 1, 4),
+                     bic = round(bics),
+                     energy = str_sub(names(bics), 6, 9))
+bic_df %>%
+  ggplot(aes(x = model, y = bic, color = energy, group = energy)) +
+  geom_point() +
+  geom_line() +
+  geom_text(aes(label = bic), vjust = 2, color = "black") +
+  scale_color_manual(values = c("red", "steelblue")) +
+  theme_bw()
+ggsave("../figures/BIC_comparison.png")
+```
+
+
+
+

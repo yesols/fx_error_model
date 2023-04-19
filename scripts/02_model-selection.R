@@ -22,63 +22,18 @@ bindx <- read.csv("outputs/table_fxonly_b.csv")
 foldx_tr <- read.csv("outputs/tr_table_fxonly_f.csv")
 bindx_tr <- read.csv("outputs/tr_table_fxonly_b.csv")
 
+# remove rows that had no match with DSSP
 foldx <- foldx[-c(449, 642, 643),]
 foldx_tr <- foldx_tr[-c(449, 642, 643),]
 
 
 ###   Stepwise model selection ###
 
-
-# Full dataset
-
-# fold_min <- lm(error~1, data=fold_tr)
-# fold_full <- lm(error~., data=fold_tr)
-# mod_step_aic_f <- step(object = fold_min,
-#                    scope = list(lower=fold_min, upper=fold_full),
-#                    direction = "both")  
-# mod_step_bic_f <- step(object = fold_min, 
-#                     scope = list(lower=fold_min, upper=fold_full),
-#                     direction = "both",
-#                     k = log(nrow(fold_tr))) 
-
-
 mod_step_f <- run_stepwise(fold_tr)
-
-
-# bind_min <- lm(error~1, data=bind_tr)
-# bind_full <- lm(error~., data=bind_tr)
-# mod_step_aic_b <- step(object = bind_min,
-#                    scope = list(lower=bind_min, upper=bind_full),
-#                    direction = "both") 
-# mod_step_bic_b <- step(object = bind_min,
-#                        scope = list(lower=bind_min, upper=bind_full),
-#                        direction = "both",
-#                        k = log(nrow(bind_tr))) 
-
-
 mod_step_b <- run_stepwise(bind_tr)
 
-
-
-# FoldX-only dataset:
-
-foldx_min <- lm(error~1, data=foldx_tr)
-foldx_full <- lm(error~., data=foldx_tr)
-mod_step_aic_fx <- step(object = foldx_min, 
-                    scope = list(lower=foldx_min,upper=foldx_full), 
-                    direction = "both") 
-mod_step_bic_fx <- step(object = foldx_min, 
-                        scope = list(lower=foldx_min,upper=foldx_full),
-                        direction = "both", k = log(nrow(foldx_tr)))
-
-bindx_min <- lm(error~1, data=bindx_tr)
-bindx_full <- lm(error~., data=bindx_tr)
-mod_step_aic_bx <- step(object = bindx_min, 
-                    scope = list(lower=bindx_min,upper=bindx_full), 
-                    direction = "both") 
-mod_step_bic_bx <- step(object = bindx_min, 
-                     scope = list(ower=bindx_min,upper=bindx_full),
-                     direction = "both", k = log(nrow(bindx_tr))) 
+mod_step_bic_fx <- run_stepwise(foldx_tr)
+mod_step_bic_bx <- run_stepwise(bindx_tr)
 
 
 
